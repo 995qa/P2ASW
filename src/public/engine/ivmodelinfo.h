@@ -87,7 +87,7 @@ public:
 	virtual const studiohdr_t		*FindModel( const studiohdr_t *pStudioHdr, void **cache, const char *modelname ) const = 0;
 	virtual const studiohdr_t		*FindModel( void *cache ) const = 0;
 	virtual	virtualmodel_t			*GetVirtualModel( const studiohdr_t *pStudioHdr ) const = 0;
-	virtual byte					*GetAnimBlock( const studiohdr_t *pStudioHdr, int iBlock ) const = 0;
+	virtual byte					*GetAnimBlock( const studiohdr_t *pStudioHdr, int iBlock, bool bPreloadIfMissing ) const = 0;
 
 	// Available on client only!!!
 	virtual void					GetModelMaterialColorAndLighting( const model_t *model, Vector const& origin,
@@ -124,6 +124,9 @@ public:
 	virtual const model_t			*FindOrLoadModel( const char *name ) const = 0;
 
 	virtual MDLHandle_t				GetCacheHandle( const model_t *model ) const = 0;
+	
+	virtual int						RegisterDynamicModel( const char *name, bool bClientSide ) = 0;
+	virtual bool					IsDynamicModelLoading( int modelIndex ) = 0;
 
 	// Returns planes of non-nodraw brush model surfaces
 	virtual int						GetBrushModelPlaneCount( const model_t *model ) const = 0;
@@ -131,6 +134,8 @@ public:
 	virtual int						GetSurfacepropsForVirtualTerrain( int index ) = 0;
 	virtual bool					UsesEnvCubemap( const model_t *model ) const = 0;
 	virtual bool					UsesStaticLighting( const model_t *model ) const = 0;
+	
+	virtual KeyValues				*GetModelKeyValues( const model_t *pModel ) = 0;
 };
 
 
