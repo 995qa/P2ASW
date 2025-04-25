@@ -66,6 +66,7 @@ class IClientMaterialSystem;
 class CPaintMaterial;
 class IPaintMapDataManager;
 class IPaintMapTextureManager;
+struct GPUMemoryStats;
 
 
 //-----------------------------------------------------------------------------
@@ -564,6 +565,7 @@ typedef void (*MaterialBufferReleaseFunc_t)( int nChangeFlags );	// see RestoreC
 typedef void (*MaterialBufferRestoreFunc_t)( int nChangeFlags );	// see RestoreChangeFlags_t
 typedef void (*ModeChangeCallbackFunc_t)( void );
 typedef void (*EndFrameCleanupFunc_t)( void );
+typedef void (*OnLevelShutdownFunc_t)( void * pUserData );
 
 //typedef int VertexBufferHandle_t;
 typedef unsigned short MaterialHandle_t;
