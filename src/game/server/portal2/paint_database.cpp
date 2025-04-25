@@ -692,7 +692,7 @@ CON_COMMAND_F( cast_ray_paint, "Test paint", FCVAR_CHEAT )
 
 void CPaintDatabase::SavePaintmapData( ISave* pSave )
 {
-	if ( !engine->HasPaintmap )
+	if ( !engine->HasPaintmap() )
 		return;
 
 	CUtlVector< uint32 > data;
@@ -710,7 +710,7 @@ void CPaintDatabase::SavePaintmapData( ISave* pSave )
 
 void CPaintDatabase::RestorePaintmapData( IRestore* pRestore )
 {
-	if ( !engine->HasPaintmap )
+	if ( !engine->HasPaintmap() )
 		return;
 
 	pRestore->StartBlock();
@@ -725,7 +725,7 @@ void CPaintDatabase::RestorePaintmapData( IRestore* pRestore )
 
 void CPaintDatabase::SendPaintDataTo( CBasePlayer* pPlayer )
 {
-	if ( !engine->HasPaintmap )
+	if ( !engine->HasPaintmap() )
 		return;
 
 	if ( pPlayer->IsConnected() )
@@ -738,7 +738,7 @@ void CPaintDatabase::SendPaintDataTo( CBasePlayer* pPlayer )
 // this is for save/restore
 void CPaintDatabase::SendPaintDataToEngine()
 {
-	if ( !engine->HasPaintmap )
+	if ( !engine->HasPaintmap() )
 		return;
 
 	if ( m_PaintRestoreData.m_PaintmapData.Count() > 0 )

@@ -34,7 +34,7 @@ CPaintSphere::CPaintSphere() : m_nPaintType( BOUNCE_POWER ), m_flSphereRadius( 6
 
 void CPaintSphere::Paint( inputdata_t &inputdata )
 {
-	if ( engine->HasPaintmap )
+	if ( engine->HasPaintmap() )
 	{
 		const Vector& vContact = GetAbsOrigin();
 		PaintDatabase.AddPaint( GetWorldEntity(), vContact, vec3_origin, m_nPaintType, m_flSphereRadius, m_flAlphaPercent );

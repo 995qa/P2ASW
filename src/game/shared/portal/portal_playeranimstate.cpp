@@ -372,7 +372,7 @@ bool CPortalPlayerAnimState::HandleMoving( Activity &idealActivity )
 		bool bHasSpeedPower = pPortalPlayer->GetPaintPower( SPEED_POWER ).m_State == ACTIVE_PAINT_POWER;
 
 #ifdef CLIENT_DLL
-		if ( engine->HasPaintmap && !bHasSpeedPower && !pPortalPlayer->IsLocalPlayer() )
+		if ( engine->HasPaintmap() && !bHasSpeedPower && !pPortalPlayer->IsLocalPlayer() )
 		{
 			// FIXME: Is this doing extra work in splitscreen?
 			// Non-local players don't update paint powers on the client because this has to happen in gamemovement!

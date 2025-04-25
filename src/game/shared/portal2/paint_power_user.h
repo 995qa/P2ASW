@@ -296,7 +296,7 @@ const PaintPowerInfo_t* PaintPowerUser<BaseEntityType>::FindHighestPriorityActiv
 template< typename BaseEntityType >
 void PaintPowerUser<BaseEntityType>::AddSurfacePaintPowerInfo( const PaintPowerInfo_t& contact, char const* context )
 {
-	if ( !engine->HasPaintmap )
+	if ( !engine->HasPaintmap() )
 	{
 		Warning( "MEMORY LEAK: adding surface paint powers in a level with no paintmaps.\n" );
 		return;
@@ -349,7 +349,7 @@ template< typename BaseEntityType >
 void PaintPowerUser<BaseEntityType>::UpdatePaintPowers()
 {
 	// Only update if there's paint in the map
-	if( engine->HasPaintmap )
+	if( engine->HasPaintmap() )
 	{
 		// Update which powers are active
 		PaintPowerInfoVector activePowers;

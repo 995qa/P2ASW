@@ -35,7 +35,7 @@ void CProjectedWallEntity::Touch( CBaseEntity* pOther )
 {
 	//Check if the touched entity is a paint power user
 	IPaintPowerUser* pPowerUser = dynamic_cast< IPaintPowerUser* >( pOther );
-	if( engine->HasPaintmap && pPowerUser )
+	if( engine->HasPaintmap() && pPowerUser )
 	{
 		//Get the up vector of the wall
 		Vector vecWallUp;

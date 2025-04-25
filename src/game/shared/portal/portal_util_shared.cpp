@@ -2938,7 +2938,7 @@ PaintPowerType UTIL_Paint_TracePower( CBaseEntity* pBrushEntity, const Vector& c
 bool UTIL_Paint_Reflect( const trace_t& tr, Vector& vStart, Vector& vDir, PaintPowerType reflectPower /* = REFLECT_POWER */ )
 {
 	// check for reflect paint
-	if ( engine->HasPaintmap && tr.m_pEnt && tr.m_pEnt->IsBSPModel() )
+	if ( engine->HasPaintmap() && tr.m_pEnt && tr.m_pEnt->IsBSPModel() )
 	{
 		PaintPowerType power = UTIL_Paint_TracePower( tr.m_pEnt, tr.endpos, tr.plane.normal );
 		if ( power == reflectPower )

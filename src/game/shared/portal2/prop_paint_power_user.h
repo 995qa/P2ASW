@@ -174,7 +174,7 @@ void PropPaintPowerUser<BasePropType>::Spawn()
 template< typename BasePropType >
 void PropPaintPowerUser<BasePropType>::VPhysicsCollision( int index, gamevcollisionevent_t *pEvent )
 {
-	if( engine->HasPaintmap )
+	if( engine->HasPaintmap() )
 	{
 		CBaseEntity* pOther = pEvent->pEntities[!index];
 
@@ -200,7 +200,7 @@ void PropPaintPowerUser<BasePropType>::VPhysicsCollision( int index, gamevcollis
 template< typename BasePropType >
 void PropPaintPowerUser<BasePropType>::VPhysicsUpdate( IPhysicsObject *pPhysics )
 {
-	if( engine->HasPaintmap )
+	if( engine->HasPaintmap() )
 	{
 		UpdatePaintPowersFromContacts();
 	}

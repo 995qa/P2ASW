@@ -28,7 +28,7 @@ class CPaintSaveRestoreBlockHandler : public CDefSaveRestoreBlockHandler
 
 	virtual void Save( ISave *pSave )
 	{
-		if ( !engine->HasPaintmap )
+		if ( !engine->HasPaintmap() )
 		{
 			return;
 		}
@@ -109,7 +109,7 @@ class CPaintSaveRestoreBlockHandler : public CDefSaveRestoreBlockHandler
 
 	virtual void PreRestore()
 	{
-		if ( !engine->HasPaintmap )
+		if ( !engine->HasPaintmap() )
 		{
 			return;
 		}
@@ -123,7 +123,7 @@ class CPaintSaveRestoreBlockHandler : public CDefSaveRestoreBlockHandler
 	
 	virtual void Restore( IRestore *pRestore, bool fCreatePlayers )
 	{
-		if ( !engine->HasPaintmap )
+		if ( !engine->HasPaintmap() )
 		{
 			return;
 		}
