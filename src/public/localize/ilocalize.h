@@ -124,7 +124,42 @@ public:
 	virtual void InstallChangeCallback( ILocalizationChangeCallback *pCallback ) = 0;
 	virtual void RemoveChangeCallback( ILocalizationChangeCallback *pCallback ) = 0;
 
-	// p2port: Everything below here in Emulsion might just be for gamepadui. It doesn't appear in the PDBs or the CSGO code.
+	virtual wchar_t* GetAsianFrequencySequence( const char * pLanguage ) = 0;
+
+	virtual const char *FindAsUTF8( const char *pchTokenName ) = 0;
+
+	// builds a localized formatted string
+	// uses the format strings first: %s1, %s2, ...  unicode strings (wchar_t *)
+	template < typename T >
+	void ConstructString(OUT_Z_BYTECAP(unicodeBufferSizeInBytes) T *unicodeOuput, int unicodeBufferSizeInBytes, const T *formatString, int numFormatParameters, ...)
+	{
+		va_list argList;
+		va_start( argList, numFormatParameters );
+
+		ConstructStringVArgsInternal( unicodeOuput, unicodeBufferSizeInBytes, formatString, numFormatParameters, argList );
+
+		va_end( argList );
+	}
+
+	template < typename T >
+	void ConstructStringVArgs(OUT_Z_BYTECAP(unicodeBufferSizeInBytes) T *unicodeOuput, int unicodeBufferSizeInBytes, const T *formatString, int numFormatParameters, va_list argList)
+	{
+		ConstructStringVArgsInternal( unicodeOuput, unicodeBufferSizeInBytes, formatString, numFormatParameters, argList );
+	}
+
+	template < typename T >
+	void ConstructString(OUT_Z_BYTECAP(unicodeBufferSizeInBytes) T *unicodeOutput, int unicodeBufferSizeInBytes, const T *formatString, KeyValues *localizationVariables)
+	{
+		ConstructStringKeyValuesInternal( unicodeOutput, unicodeBufferSizeInBytes, formatString, localizationVariables );
+	}
+
+protected:
+	// internal "interface"
+	virtual void ConstructStringVArgsInternal(char *unicodeOutput, int unicodeBufferSizeInBytes, const char *formatString, int numFormatParameters, va_list argList) = 0;
+	virtual void ConstructStringVArgsInternal(wchar_t *unicodeOutput, int unicodeBufferSizeInBytes, const wchar_t *formatString, int numFormatParameters, va_list argList) = 0;
+
+	virtual void ConstructStringKeyValuesInternal(char *unicodeOutput, int unicodeBufferSizeInBytes, const char *formatString, KeyValues *localizationVariables) = 0;
+	virtual void ConstructStringKeyValuesInternal(wchar_t *unicodeOutput, int unicodeBufferSizeInBytes, const wchar_t *formatString, KeyValues *localizationVariables) = 0;
 };
 
 
