@@ -46,9 +46,6 @@ public:
 
 	virtual bool SupportsFontFeature( FontFeature_t feature ) = 0;
 
-	// Console-only.  Get the string to use for the current video mode for layout files.
-	virtual const char *GetResolutionKey( void ) const = 0;
-
 	virtual void GetScreenSize(int &wide, int &tall) = 0;
 
 	// Gets the base resolution used in proportional mode
@@ -74,10 +71,10 @@ public:
 		return false; 
 	}
 
-
-
 	virtual void SetLanguage( const char *pLanguage ) = 0;
 	virtual const char *GetLanguage() = 0;
+	
+	virtual void PrecacheFontCharacters( FontHandle_t font, wchar_t *pCharacters ) = 0;
 };
 
 
