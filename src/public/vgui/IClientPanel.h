@@ -77,9 +77,6 @@ public:
 	// deletes this
 	virtual void DeletePanel() = 0;
 
-	// Mouse Codes...
-	virtual bool HandleMouseCode( MouseCode code ) = 0;
-
 	// interfaces
 	virtual void *QueryInterface(EInterfaceID id) = 0;
 
