@@ -28,8 +28,6 @@ extern bool g_bBulletPortalTrace;
 	class CBasePlayer;
 #endif
 
-struct PaintTraceData_t;
-
 //When tracing through portals, a line becomes a discontinuous collection of segments as it travels
 struct ComplexPortalTrace_t
 {
