@@ -62,8 +62,8 @@ public:
 	virtual ShaderAPITextureHandle_t GetShaderAPITextureBindHandle( ITexture *pTexture, int nFrameVar, int nTextureChannel = 0 ) =0;
 
 	// Binds a texture
-	virtual void BindTexture( Sampler_t sampler1, ITexture *pTexture, int nFrameVar = 0 ) = 0;
-	virtual void BindTexture( Sampler_t sampler1, Sampler_t sampler2, ITexture *pTexture, int nFrameVar = 0 ) = 0;
+	virtual void BindTexture( Sampler_t sampler1, TextureBindFlags_t nBindFlags, ITexture *pTexture, int nFrameVar = 0 ) = 0;
+	virtual void BindTexture( Sampler_t sampler1, TextureBindFlags_t nBindFlags, Sampler_t sampler2, ITexture *pTexture, int nFrameVar = 0 ) = 0;
 
 	// Takes a snapshot
 	virtual void TakeSnapshot( ) = 0;
@@ -103,6 +103,10 @@ public:
 
 	// Returns information about each shader defined in this DLL
 	virtual IShader *GetShader( int nShader ) = 0;
+
+	// Deals with all of the shader combo semantics from inc files.
+	virtual int ShaderComboSemanticsCount() const = 0;
+	virtual const ShaderComboSemantics_t *GetComboSemantics( int n ) = 0;
 };
 
 
