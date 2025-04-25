@@ -120,9 +120,6 @@ public:
 	/// Resets the input state
 	virtual void ResetInputState() = 0;
 
-	/// Sets a player as the primary user - all other controllers will be ignored.
-	virtual void SetPrimaryUserId( int userId ) = 0;
-
 	/// Convert back + forth between ButtonCode/AnalogCode + strings
 	virtual const char *ButtonCodeToString( ButtonCode_t code ) const = 0;
 	virtual const char *AnalogCodeToString( AnalogCode_t code ) const = 0;
@@ -170,6 +167,8 @@ public:
 	/// Mouse capture
 	virtual void EnableMouseCapture( PlatWindow_t hWnd ) = 0;
 	virtual void DisableMouseCapture() = 0;
+
+	// p2port: According to Emulsion, modern Portal 2 has new functions at the end of the vtable
 };
 
 DECLARE_TIER2_INTERFACE( IInputSystem, g_pInputSystem );
