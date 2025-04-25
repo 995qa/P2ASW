@@ -81,8 +81,6 @@ public:
 
 	// builds a localized formatted string
 	// uses the format strings first: %s1, %s2, ...  unicode strings (wchar_t *)
-	// p2port: Why does Emulsion comment this out and says that we should move the function?
-	// virtual void ConstructString(wchar_t *unicodeOuput, int unicodeBufferSizeInBytes, const wchar_t *formatString, int numFormatParameters, ...) = 0;
 	
 	// gets the values by the string index
 	virtual const char *GetNameByIndex(LocalizeStringIndex_t index) = 0;
