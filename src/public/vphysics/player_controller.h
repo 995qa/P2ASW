@@ -42,6 +42,8 @@ public:
 	virtual float GetPushMassLimit() = 0;
 	virtual float GetPushSpeedLimit() = 0;
 	virtual bool WasFrozen() = 0;
+	// returns bitfield e.g. 0 (no contacts), 1 (has physics contact), 2 (contact matching nGameFlags), 3 (both 1 & 2)
+	virtual uint32 GetContactState( uint16 nGameFlags ) = 0;
 };
 
 #endif // PLAYER_CONTROLLER_H
