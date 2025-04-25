@@ -146,6 +146,7 @@ public:
 
 	// Methods related to alpha blending
 	virtual void EnableBlending( bool bEnable ) = 0;
+	virtual void EnableBlendingForceOpaque( bool bEnable ) = 0; // enables alpha blending on a batch but does not force it to render with translucents
 	virtual void BlendFunc( ShaderBlendFactor_t srcFactor, ShaderBlendFactor_t dstFactor ) = 0;
 	virtual void EnableBlendingSeparateAlpha( bool bEnable ) = 0;
 	virtual void BlendFuncSeparateAlpha( ShaderBlendFactor_t srcFactor, ShaderBlendFactor_t dstFactor ) = 0;
