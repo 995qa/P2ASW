@@ -173,6 +173,14 @@ struct MeshDesc_t : public VertexDesc_t, public IndexDesc_t
 {
 };
 
+//-----------------------------------------------------------------------------
+// The Mesh memory descriptor
+//-----------------------------------------------------------------------------
+struct MeshBuffersAllocationSettings_t
+{
+	uint32 m_uiIbUsageFlags;
+};
+
 
 //-----------------------------------------------------------------------------
 // Standard vertex formats for models
@@ -335,6 +343,12 @@ public:
 	virtual IMesh* GetMesh() = 0;
 };
 
+//-----------------------------------------------------------------------------
+abstract_class ICachedPerFrameMeshData
+{
+public:
+	virtual void Free() = 0;
+};
 
 //-----------------------------------------------------------------------------
 // Interface to the mesh - needs to contain an IVertexBuffer and an IIndexBuffer to emulate old mesh behavior
@@ -376,7 +390,7 @@ public:
 	// New version
 	// Locks/unlocks the mesh, providing space for nVertexCount and nIndexCount.
 	// nIndexCount of -1 means don't lock the index buffer...
-	virtual void LockMesh( int nVertexCount, int nIndexCount, MeshDesc_t &desc ) = 0;
+	virtual void LockMesh( int nVertexCount, int nIndexCount, MeshDesc_t &desc, MeshBuffersAllocationSettings_t *pSettings = 0 ) = 0;
 	virtual void ModifyBegin( int nFirstVertex, int nVertexCount, int nFirstIndex, int nIndexCount, MeshDesc_t& desc ) = 0;
 	virtual void ModifyEnd( MeshDesc_t& desc ) = 0;
 	virtual void UnlockMesh( int nVertexCount, int nIndexCount, MeshDesc_t &desc ) = 0;
@@ -394,9 +408,21 @@ public:
 	// Draws the mesh w/ modulation.
 	virtual void DrawModulated( const Vector4D &diffuseModulation, int nFirstIndex = -1, int nIndexCount = 0 ) = 0;
 
-#if defined( _X360 )
-	virtual unsigned ComputeMemoryUsed() = 0;
-#endif
+	virtual unsigned int ComputeMemoryUsed() = 0;
+
+	virtual void * AccessRawHardwareDataStream( uint8 nRawStreamIndex, uint32 numBytes, uint32 uiFlags, void *pvContext ) = 0;
+
+	virtual ICachedPerFrameMeshData *GetCachedPerFrameMeshData() = 0;
+	virtual void ReconstructFromCachedPerFrameMeshData( ICachedPerFrameMeshData *pData ) = 0;
+
+	//p2port: Emulsion
+	// 0x78
+	virtual void LockMesh_Old( int nVertexCount, int nIndexCount, MeshDesc_t& desc )
+	{
+		MeshBuffersAllocationSettings_t sett;
+		sett.m_uiIbUsageFlags = 0;
+		LockMesh( nVertexCount, nIndexCount, desc, &sett );
+	}
 };
 
 
@@ -2919,7 +2945,7 @@ public:
 	// Locks the vertex buffer, can specify arbitrary index lists
 	// (must use the Index() call below)
 	void Begin( IMesh *pMesh, MaterialPrimitiveType_t type, int nVertexCount, int nIndexCount, int *nFirstVertex );
-	void Begin( IMesh *pMesh, MaterialPrimitiveType_t type, int nVertexCount, int nIndexCount );
+	void Begin( IMesh *pMesh, MaterialPrimitiveType_t type, int nVertexCount, int nIndexCount, MeshBuffersAllocationSettings_t *pSettings = 0 );
 
 	// forward compat
 	void Begin( IVertexBuffer *pVertexBuffer, MaterialPrimitiveType_t type, int numPrimitives );
@@ -3311,7 +3337,7 @@ inline void CMeshBuilder::Begin( IMesh *pMesh, MaterialPrimitiveType_t type, int
 	*nFirstVertex = m_VertexBuilder.m_nFirstVertex * m_VertexBuilder.VertexSize();
 }
 
-inline void CMeshBuilder::Begin( IMesh* pMesh, MaterialPrimitiveType_t type, int nVertexCount, int nIndexCount )
+inline void CMeshBuilder::Begin( IMesh* pMesh, MaterialPrimitiveType_t type, int nVertexCount, int nIndexCount, MeshBuffersAllocationSettings_t *pMeshSettings )
 {
 	Assert( pMesh && (!m_pMesh) );
 
@@ -3332,7 +3358,7 @@ inline void CMeshBuilder::Begin( IMesh* pMesh, MaterialPrimitiveType_t type, int
 	m_pMesh->SetPrimitiveType( type );
 
 	// Lock the vertex and index buffer
-	m_pMesh->LockMesh( nVertexCount, nIndexCount, *this );
+	m_pMesh->LockMesh( nVertexCount, nIndexCount, *this, pMeshSettings );
 
 	m_IndexBuilder.AttachBegin( pMesh, nIndexCount, *this );
 	m_VertexBuilder.AttachBegin( pMesh, nVertexCount, *this );
