@@ -1129,15 +1129,29 @@ private:
 class ALIGN8 PLATFORM_CLASS CThreadSpinRWLock
 {
 public:
-	CThreadSpinRWLock()	{ COMPILE_TIME_ASSERT( sizeof( LockInfo_t ) == sizeof( int64 ) ); Assert( (intp)this % 8 == 0 ); memset( this, 0, sizeof( *this ) ); }
+	CThreadSpinRWLock()
+	{
+		m_lockInfo.m_i32 = 0;
+		m_writerId = 0;
+	}
 
-	bool TryLockForWrite();
-	bool TryLockForRead();
+	bool IsLockedForWrite();
+	bool IsLockedForRead();
+
+	FORCEINLINE bool TryLockForWrite();
+	bool TryLockForWrite_UnforcedInline();
+
+	void LockForWrite();
+	void SpinLockForWrite();
+
+	FORCEINLINE bool TryLockForRead();
+	bool TryLockForRead_UnforcedInline();
 
 	void LockForRead();
-	void UnlockRead();
-	void LockForWrite();
+	void SpinLockForRead();
+
 	void UnlockWrite();
+	void UnlockRead();
 
 	bool TryLockForWrite() const { return const_cast<CThreadSpinRWLock *>(this)->TryLockForWrite(); }
 	bool TryLockForRead() const { return const_cast<CThreadSpinRWLock *>(this)->TryLockForRead(); }
@@ -1147,25 +1161,23 @@ public:
 	void UnlockWrite() const { const_cast<CThreadSpinRWLock *>(this)->UnlockWrite(); }
 
 private:
-	// This structure is used as an atomic & exchangeable 64-bit value. It would probably be better to just have one 64-bit value
-	// and accessor functions that make/break it, but at this late stage of development, I'm just wrapping it into union
-	// Beware of endianness: on Xbox/PowerPC m_writerId is high-word of m_i64; on PC, it's low-dword of m_i64
+	enum
+	{
+		THREAD_SPIN = (8 * 1024)
+	};
+
 	union LockInfo_t
 	{
 		struct
 		{
-			uint32	m_writerId;
-			int		m_nReaders;
+			uint16 m_nReaders;
+			uint16 m_fWriting;
 		};
-		int64 m_i64;
+		uint32 m_i32;
 	};
 
-	bool AssignIf( const LockInfo_t &newValue, const LockInfo_t &comperand );
-	bool TryLockForWrite( const uint32 threadId );
-	void SpinLockForWrite( const uint32 threadId );
-
-	volatile LockInfo_t m_lockInfo;
-	CInterlockedInt m_nWriters;
+	LockInfo_t	m_lockInfo;
+	ThreadId_t		m_writerId;
 } ALIGN8_POST;
 
 //-----------------------------------------------------------------------------
@@ -1187,12 +1199,20 @@ public:
 
 	size_t CalcStackDepth( void *pStackVariable )		{ return ((byte *)m_pStackBase - (byte *)pStackVariable); }
 
+	enum ThreadPriorityEnum_t
+	{
+		PRIORITY_DEFAULT = 0,
+		PRIORITY_NORMAL = 0,
+		PRIORITY_HIGH = 1,
+		PRIORITY_LOW = -1
+	};
+
 	//-----------------------------------------------------
 	// Functions for the other threads
 	//-----------------------------------------------------
 
 	// Start thread running  - error if already running
-	virtual bool Start( unsigned nBytesStack = 0 );
+	virtual bool Start( unsigned nBytesStack = 0, ThreadPriorityEnum_t nPriority = PRIORITY_DEFAULT );
 
 	// Returns true if thread has been created and hasn't yet exited
 	bool IsAlive();
@@ -1312,6 +1332,8 @@ private:
 	char	m_szName[32];
 	void *	m_pStackBase;
 	unsigned m_flags;
+
+	CThreadManualEvent m_NotSuspendedEvent;
 };
 
 //-----------------------------------------------------------------------------
@@ -1371,7 +1393,9 @@ public:
 	int BoostPriority();
 
 protected:
-	int Call( unsigned, unsigned timeout, bool fBoost );
+	typedef uint32 (        *WaitFunc_t)( uint32 nHandles, CThreadEvent** ppHandles, int bWaitAll, uint32 timeout );
+	int Call( unsigned, unsigned timeout, bool fBoost, WaitFunc_t = NULL );
+	int WaitForReply( unsigned timeout, WaitFunc_t );
 
 private:
 	CWorkerThread( const CWorkerThread & );
@@ -1665,7 +1689,153 @@ inline void CThreadRWLock::UnlockRead()
 //
 //-----------------------------------------------------------------------------
 
-inline bool CThreadSpinRWLock::AssignIf( const LockInfo_t &newValue, const LockInfo_t &comperand )
+#if defined(TEST_THREAD_SPIN_RW_LOCK)
+#define RWLAssert( exp ) if ( exp ) ; else DebuggerBreak();
+#else
+#define RWLAssert( exp ) ((void)0)
+#endif
+
+inline bool CThreadSpinRWLock::IsLockedForWrite()
+{
+	return ( m_lockInfo.m_fWriting == 1 );
+}
+
+inline bool CThreadSpinRWLock::IsLockedForRead()
+{
+	return ( m_lockInfo.m_nReaders > 0 );
+}
+
+FORCEINLINE bool CThreadSpinRWLock::TryLockForWrite()
+{
+	volatile LockInfo_t &curValue = m_lockInfo;
+	if ( !( curValue.m_i32 & 0x00010000 ) && ThreadInterlockedAssignIf( &curValue.m_i32, 0x00010000, 0  ) ) 
+	{
+		ThreadMemoryBarrier();
+		RWLAssert( m_iWriteDepth == 0 && m_writerId == 0 );
+		m_writerId = ThreadGetCurrentId();
+#ifdef REENTRANT_THREAD_SPIN_RW_LOCK
+		m_iWriteDepth++;
+#endif
+		return true;
+	}
+
+	return false;
+}
+
+inline bool CThreadSpinRWLock::TryLockForWrite_UnforcedInline()
+{
+	if ( TryLockForWrite() )
+	{
+		return true;
+	}
+
+#ifdef REENTRANT_THREAD_SPIN_RW_LOCK
+	if ( m_writerId != ThreadGetCurrentId() )
+	{
+		return false;
+	}
+	m_iWriteDepth++;
+	return true;
+#else
+	return false;
+#endif
+}
+
+FORCEINLINE void CThreadSpinRWLock::LockForWrite()
+{
+	if ( !TryLockForWrite() )
+	{
+		SpinLockForWrite();
+	}
+}
+
+FORCEINLINE bool CThreadSpinRWLock::TryLockForRead()
+{
+	volatile LockInfo_t &curValue = m_lockInfo;
+	if ( !( curValue.m_i32 & 0x00010000 ) ) // !m_lockInfo.m_fWriting
+	{
+		LockInfo_t oldValue; 
+		LockInfo_t newValue;
+		oldValue.m_i32 = ( curValue.m_i32 & 0xffff );
+		newValue.m_i32 = oldValue.m_i32 + 1;
+
+		if ( ThreadInterlockedAssignIf( &m_lockInfo.m_i32, newValue.m_i32, oldValue.m_i32 ) )
+		{
+			ThreadMemoryBarrier();
+			RWLAssert( m_lockInfo.m_fWriting == 0 );
+			return true;
+		}
+	}
+	return false;
+}
+
+inline bool CThreadSpinRWLock::TryLockForRead_UnforcedInline()
+{
+#ifdef REENTRANT_THREAD_SPIN_RW_LOCK
+	if ( m_lockInfo.m_i32 & 0x00010000 ) // m_lockInfo.m_fWriting
+	{
+		if ( m_writerId == ThreadGetCurrentId() )
+		{
+			m_lockInfo.m_nReaders++;
+			return true;
+		}
+
+		return false;
+	}
+#endif
+	return TryLockForRead();
+}
+
+FORCEINLINE void CThreadSpinRWLock::LockForRead()
+{
+	if ( !TryLockForRead() )
+	{
+		SpinLockForRead();
+	}
+}
+
+FORCEINLINE void CThreadSpinRWLock::UnlockWrite()
+{
+	RWLAssert( m_writerId == ThreadGetCurrentId() );
+#ifdef REENTRANT_THREAD_SPIN_RW_LOCK
+	if ( --m_iWriteDepth == 0 )
+#endif
+	{
+		m_writerId = 0;
+		ThreadMemoryBarrier();
+		m_lockInfo.m_i32 = 0;
+	}
+}
+
+#ifndef REENTRANT_THREAD_SPIN_RW_LOCK
+FORCEINLINE
+#else
+inline
+#endif
+void CThreadSpinRWLock::UnlockRead()
+{
+	RWLAssert( m_writerId == 0 || ( m_writerId == ThreadGetCurrentId() && m_lockInfo.m_fWriting ) );
+#ifdef REENTRANT_THREAD_SPIN_RW_LOCK
+	if ( !( m_lockInfo.m_i32 & 0x00010000 ) ) // !m_lockInfo.m_fWriting
+#endif
+	{
+		ThreadMemoryBarrier();
+		ThreadInterlockedDecrement( &m_lockInfo.m_i32 );
+		RWLAssert( m_writerId == 0 && !m_lockInfo.m_fWriting );
+	}
+#ifdef REENTRANT_THREAD_SPIN_RW_LOCK
+	else if ( m_writerId == ThreadGetCurrentId() )
+	{
+		m_lockInfo.m_nReaders--;
+	}
+	else
+	{
+		RWLAssert( 0 );
+	}
+#endif
+}
+
+/*inline bool CThreadSpinRWLock::AssignIf( const LockInfo_t &newValue, const LockInfo_t &comperand )
 {
 	// Note: using unions guarantees no aliasing bugs. Casting structures through *(int64*)& 
 	//       may create hard-to-catch bugs because when you do that, compiler doesn't know that the newly computed pointer
@@ -1747,7 +1917,7 @@ inline void CThreadSpinRWLock::LockForWrite()
 		ThreadPause();
 		SpinLockForWrite( threadId );
 	}
-}
+}*/
 
 // read data from a memory address
 template<class T> FORCEINLINE T ReadVolatileMemory( T const *pPtr )
