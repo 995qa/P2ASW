@@ -2320,10 +2320,12 @@ public:
 	void AdvanceIndex();
 	void AdvanceIndices( int nIndexCount );
 
-	int GetCurrentIndex();
+	int GetCurrentIndex() const;
+	int GetIndexOffset() const;
 	int GetFirstIndex() const;
 
 	unsigned short const* Index() const;
+	unsigned short *BaseIndexData() const;
 
 	// Used to define the indices (only used if you aren't using primitives)
 	void Index( unsigned short nIndex );
@@ -2719,15 +2721,25 @@ inline void CIndexBuilder::AdvanceIndices( int nIndices )
 //-----------------------------------------------------------------------------
 // Returns the current index
 //-----------------------------------------------------------------------------
-inline int CIndexBuilder::GetCurrentIndex()
+inline int CIndexBuilder::GetCurrentIndex() const
 {
 	return m_nCurrentIndex;
+}
+
+inline int CIndexBuilder::GetIndexOffset() const
+{
+	return m_nIndexOffset;
 }
 
 inline unsigned short const* CIndexBuilder::Index() const
 {
 	Assert( m_nCurrentIndex < m_nMaxIndexCount );
 	return &m_pIndices[m_nCurrentIndex];
+}
+
+inline unsigned short *CIndexBuilder::BaseIndexData() const
+{
+	return m_pIndices;
 }
 
 inline void CIndexBuilder::SelectIndex( int nIndex )
@@ -2847,6 +2859,16 @@ inline void CIndexBuilder::FastIndexList( const unsigned short *pIndexList, int 
 		pIndexOut[i] = startVert + pIndexList[i];
 	}
 	AdvanceIndices(indexCount);
+}
+
+
+FORCEINLINE unsigned int TwoIndices( unsigned int nIndex1, unsigned int nIndex2 )
+{
+#ifdef PLAT_LITTLE_ENDIAN
+	return ( (unsigned int)nIndex1 ) | ( ( (unsigned int)nIndex2 ) << 16 );
+#else
+	return ( (unsigned int)nIndex2 ) | ( ( (unsigned int)nIndex1 ) << 16 );
+#endif
 }
 
 
@@ -2981,6 +3003,9 @@ public:
 
 	// Returns the base vertex memory pointer
 	void* BaseVertexData();
+
+	// Returns the base index memory pointer
+	unsigned short* BaseIndexData();
 
 	// Selects the nth Vertex and Index 
 	void SelectVertex( int idx );
@@ -3598,6 +3623,15 @@ FORCEINLINE int CMeshBuilder::IndexCount() const
 FORCEINLINE void* CMeshBuilder::BaseVertexData()
 {
 	return m_VertexBuilder.BaseVertexData();
+}
+
+
+//-----------------------------------------------------------------------------
+// Returns the base index memory pointer
+//-----------------------------------------------------------------------------
+FORCEINLINE unsigned short* CMeshBuilder::BaseIndexData()
+{
+	return m_IndexBuilder.BaseIndexData();
 }
 
 //-----------------------------------------------------------------------------
