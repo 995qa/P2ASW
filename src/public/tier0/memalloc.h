@@ -123,9 +123,10 @@ public:
 
 	virtual void DumpBlockStats( void * ) = 0;
 
-#if defined( _MEMTEST )	
+	// p2port: commented out in Emulsion
+//#if defined( _MEMTEST )	
 	virtual void SetStatsExtraInfo( const char *pMapName, const char *pComment ) = 0;
-#endif
+//#endif
 
 	// Returns 0 if no failure, otherwise the size_t of the last requested chunk
 	virtual size_t MemoryAllocFailed() = 0;

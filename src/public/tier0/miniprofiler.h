@@ -15,7 +15,8 @@
 #include <intrin.h>	// get __rdtsc
 #endif
 
-#if !defined(_CERT) && ( defined( WIN32 ) || defined( _X360 ) ) //	&& !defined(_LINUX)
+// p2port: added P2ASW check (Emulsion does this too) could this be a lazy fix or is it actually accurate
+#if !defined(_CERT) && ( defined( WIN32 ) || defined( _X360 ) ) && !defined( P2ASW ) //	&& !defined(_LINUX)
 #define ENABLE_HARDWARE_PROFILER 1
 #else
 #define ENABLE_HARDWARE_PROFILER 0
