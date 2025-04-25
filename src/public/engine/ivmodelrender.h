@@ -173,11 +173,11 @@ public:
 
 	// Extended version of drawmodel
 	virtual int	DrawModelEx( ModelRenderInfo_t &pInfo ) = 0;
-
-	virtual int	DrawModelExStaticProp( ModelRenderInfo_t &pInfo ) = 0;
-
-	virtual bool DrawModelSetup( ModelRenderInfo_t &pInfo, DrawModelState_t *pState, matrix3x4_t **ppBoneToWorldOut ) = 0;
-	virtual void DrawModelExecute( const DrawModelState_t &state, const ModelRenderInfo_t &pInfo, matrix3x4_t *pCustomBoneToWorld = NULL ) = 0;
+	
+	virtual int	DrawModelExStaticProp( IMatRenderContext *pRenderContext, ModelRenderInfo_t &pInfo ) = 0;
+	
+	virtual bool DrawModelSetup( IMatRenderContext *pRenderContext, ModelRenderInfo_t &pInfo, DrawModelState_t *pState, matrix3x4_t **ppBoneToWorldOut ) = 0;
+	virtual void DrawModelExecute( IMatRenderContext *pRenderContext, const DrawModelState_t &state, const ModelRenderInfo_t &pInfo, matrix3x4_t *pCustomBoneToWorld = NULL ) = 0;
 
 	// Sets up lighting context for a point in space
 	virtual void SetupLighting( const Vector &vecCenter ) = 0;
