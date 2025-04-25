@@ -513,7 +513,7 @@ public:
 		}
 	}
 
-	HSOUNDSCRIPTHANDLE PrecacheScriptSound( const char *soundname )
+	HSOUNDSCRIPTHASH PrecacheScriptSound( const char *soundname )
 	{
 		int soundIndex = soundemitterbase->GetSoundIndex( soundname );
 		if ( !soundemitterbase->IsValidIndex( soundIndex ) )
@@ -525,7 +525,7 @@ public:
 				CBaseEntity::PrecacheSound( soundname );
 	
 				g_bPermitDirectSoundPrecache = false;
-				return SOUNDEMITTER_INVALID_HANDLE;
+				return SOUNDEMITTER_INVALID_HASH;
 			}
 
 #if !defined( CLIENT_DLL )
@@ -541,14 +541,14 @@ public:
 				}
 			}
 #endif
-			return (HSOUNDSCRIPTHANDLE)soundIndex;
+			return (HSOUNDSCRIPTHASH)soundIndex;
 		}
 #if !defined( CLIENT_DLL )
 		LogPrecache( soundname );
 #endif
 
 		InternalPrecacheWaves( soundIndex );
-		return (HSOUNDSCRIPTHANDLE)soundIndex;
+		return (HSOUNDSCRIPTHASH)soundIndex;
 	}
 
 	void PrefetchScriptSound( const char *soundname )
@@ -567,7 +567,7 @@ public:
 	}
 public:
 
-	void EmitSoundByHandle( IRecipientFilter& filter, int entindex, const EmitSound_t & ep, HSOUNDSCRIPTHANDLE& handle )
+	void EmitSoundByHandle( IRecipientFilter& filter, int entindex, const EmitSound_t & ep, HSOUNDSCRIPTHASH& handle )
 	{
 		// Pull data from parameters
 		CSoundParameters params;
@@ -776,15 +776,15 @@ public:
 			return;
 		}
 
-		if ( ep.m_hSoundScriptHandle == SOUNDEMITTER_INVALID_HANDLE )
+		if ( ep.m_hSoundScriptHash == SOUNDEMITTER_INVALID_HASH )
 		{
-			ep.m_hSoundScriptHandle = (HSOUNDSCRIPTHANDLE)soundemitterbase->GetSoundIndex( ep.m_pSoundName );
+			ep.m_hSoundScriptHash = (HSOUNDSCRIPTHASH)soundemitterbase->GetSoundIndex( ep.m_pSoundName );
 		}
 
-		if ( ep.m_hSoundScriptHandle == -1 )
+		if ( ep.m_hSoundScriptHash == -1 )
 			return;
 
-		EmitSoundByHandle( filter, entindex, ep, ep.m_hSoundScriptHandle );
+		EmitSoundByHandle( filter, entindex, ep, ep.m_hSoundScriptHash );
 	}
 
 	void EmitCloseCaption( IRecipientFilter& filter, int entindex, bool fromplayer, char const *token, CUtlVector< Vector >& originlist, float duration, bool warnifmissing /*= false*/, bool bForceSubtitle = false )
@@ -1054,14 +1054,14 @@ public:
 
 	}
 
-	void StopSoundByHandle( int entindex, const char *soundname, HSOUNDSCRIPTHANDLE& handle, bool bIsStoppingSpeakerSound = false )
+	void StopSoundByHandle( int entindex, const char *soundname, HSOUNDSCRIPTHASH& handle, bool bIsStoppingSpeakerSound = false )
 	{
-		if ( handle == SOUNDEMITTER_INVALID_HANDLE )
+		if ( handle == SOUNDEMITTER_INVALID_HASH )
 		{
-			handle = (HSOUNDSCRIPTHANDLE)soundemitterbase->GetSoundIndex( soundname );
+			handle = (HSOUNDSCRIPTHASH)soundemitterbase->GetSoundIndex( soundname );
 		}
 
-		if ( handle == SOUNDEMITTER_INVALID_HANDLE )
+		if ( handle == SOUNDEMITTER_INVALID_HASH )
 			return;
 
 		CSoundParametersInternal *params;
@@ -1099,8 +1099,8 @@ public:
 
 	void StopSound( int entindex, const char *soundname )
 	{
-		HSOUNDSCRIPTHANDLE handle = (HSOUNDSCRIPTHANDLE)soundemitterbase->GetSoundIndex( soundname );
-		if ( handle == SOUNDEMITTER_INVALID_HANDLE )
+		HSOUNDSCRIPTHASH handle = (HSOUNDSCRIPTHASH)soundemitterbase->GetSoundIndex( soundname );
+		if ( handle == SOUNDEMITTER_INVALID_HASH )
 		{
 			return;
 		}
@@ -1580,7 +1580,7 @@ void CBaseEntity::EmitSound( const char *soundname, float soundtime /*= 0.0f*/, 
 // Purpose:  Non-static override for doing the general case of CPASAttenuationFilter( this ), and EmitSound( filter, entindex(), etc. );
 // Input  : *soundname - 
 //-----------------------------------------------------------------------------
-void CBaseEntity::EmitSound( const char *soundname, HSOUNDSCRIPTHANDLE& handle, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
+void CBaseEntity::EmitSound( const char *soundname, HSOUNDSCRIPTHASH& handle, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
 {
 	VPROF_BUDGET( "CBaseEntity::EmitSound", _T( "CBaseEntity::EmitSound" ) );
 
@@ -1629,7 +1629,7 @@ void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const char
 	params.m_pflSoundDuration = duration;
 	params.m_bWarnOnDirectWaveReference = true;
 
-	EmitSound( filter, iEntIndex, params, params.m_hSoundScriptHandle );
+	EmitSound( filter, iEntIndex, params, params.m_hSoundScriptHash );
 }
 
 //-----------------------------------------------------------------------------
@@ -1639,7 +1639,7 @@ void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const char
 //			*soundname - 
 //			*pOrigin - 
 //-----------------------------------------------------------------------------
-void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const char *soundname, HSOUNDSCRIPTHANDLE& handle, const Vector *pOrigin /*= NULL*/, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
+void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const char *soundname, HSOUNDSCRIPTHASH& handle, const Vector *pOrigin /*= NULL*/, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
 {
 	VPROF_BUDGET( "CBaseEntity::EmitSound", _T( "CBaseEntity::EmitSound" ) );
 
@@ -1675,7 +1675,7 @@ void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const Emit
 //			iEntIndex - 
 //			params - 
 //-----------------------------------------------------------------------------
-void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const EmitSound_t & params, HSOUNDSCRIPTHANDLE& handle )
+void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const EmitSound_t & params, HSOUNDSCRIPTHASH& handle )
 {
 	VPROF_BUDGET( "CBaseEntity::EmitSound", _T( "CBaseEntity::EmitSound" ) );
 
@@ -1706,7 +1706,7 @@ void CBaseEntity::StopSound( const char *soundname )
 // Purpose: 
 // Input  : *soundname - 
 //-----------------------------------------------------------------------------
-void CBaseEntity::StopSound( const char *soundname, HSOUNDSCRIPTHANDLE& handle )
+void CBaseEntity::StopSound( const char *soundname, HSOUNDSCRIPTHASH& handle )
 {
 #if defined( CLIENT_DLL )
 	if ( entindex() == -1 )
@@ -1741,7 +1741,7 @@ soundlevel_t CBaseEntity::LookupSoundLevel( const char *soundname )
 }
 
 
-soundlevel_t CBaseEntity::LookupSoundLevel( const char *soundname, HSOUNDSCRIPTHANDLE& handle )
+soundlevel_t CBaseEntity::LookupSoundLevel( const char *soundname, HSOUNDSCRIPTHASH& handle )
 {
 	return soundemitterbase->LookupSoundLevelByHandle( soundname, handle );
 }
@@ -1827,14 +1827,14 @@ bool CBaseEntity::GetParametersForSound( const char *soundname, CSoundParameters
 	return soundemitterbase->GetParametersForSound( soundname, params, gender );
 }
 
-bool CBaseEntity::GetParametersForSound( const char *soundname, HSOUNDSCRIPTHANDLE& handle, CSoundParameters &params, const char *actormodel )
+bool CBaseEntity::GetParametersForSound( const char *soundname, HSOUNDSCRIPTHASH& handle, CSoundParameters &params, const char *actormodel )
 {
 	gender_t gender = soundemitterbase->GetActorGender( actormodel );
 	
 	return soundemitterbase->GetParametersForSoundEx( soundname, handle, params, gender );
 }
 
-HSOUNDSCRIPTHANDLE CBaseEntity::PrecacheScriptSound( const char *soundname )
+HSOUNDSCRIPTHASH CBaseEntity::PrecacheScriptSound( const char *soundname )
 {
 #if !defined( CLIENT_DLL )
 	return g_SoundEmitterSystem.PrecacheScriptSound( soundname );

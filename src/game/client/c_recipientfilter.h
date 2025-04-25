@@ -148,12 +148,12 @@ public:
 	{
 	}
 
-	CPASAttenuationFilter( C_BaseEntity *entity, const char *lookupSound, HSOUNDSCRIPTHANDLE& handle ) :
+	CPASAttenuationFilter( C_BaseEntity *entity, const char *lookupSound, HSOUNDSCRIPTHASH& handle ) :
 		CPASFilter( entity->GetAbsOrigin() )
 	{
 	}
 
-	CPASAttenuationFilter( const Vector& origin, const char *lookupSound, HSOUNDSCRIPTHANDLE& handle ) :
+	CPASAttenuationFilter( const Vector& origin, const char *lookupSound, HSOUNDSCRIPTHASH& handle ) :
 		CPASFilter( origin )
 	{
 	}

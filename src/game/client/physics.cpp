@@ -1382,7 +1382,7 @@ IPhysicsObject *GetWorldPhysObject ( void )
 	return g_PhysWorldObject;
 }
 
-void PhysFrictionSound( CBaseEntity *pEntity, IPhysicsObject *pObject, const char *pSoundName, HSOUNDSCRIPTHANDLE& handle, float flVolume )
+void PhysFrictionSound( CBaseEntity *pEntity, IPhysicsObject *pObject, const char *pSoundName, HSOUNDSCRIPTHASH& handle, float flVolume )
 {
 	if ( !pEntity )
 		return;
