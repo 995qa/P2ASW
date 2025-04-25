@@ -347,6 +347,9 @@ public:
 	// Method to unpack data into a structure
 	void UnpackIntoStructure( void *pData, const DmxElementUnpackStructure_t *pUnpack ) const;
 
+	// p2port: Not in CSGO or Portal 2 PDBs, but IS in Emulsion
+	void UnpackIntoStructure2(void* pData, const DmxElementUnpackStructure_t* pUnpack) const;
+
 	// Creates attributes based on the unpack structure
 	void AddAttributesFromStructure( const void *pData, const DmxElementUnpackStructure_t *pUnpack );
 

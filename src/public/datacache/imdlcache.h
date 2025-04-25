@@ -72,6 +72,9 @@ enum MDLCacheDataType_t
 abstract_class IMDLCacheNotify
 {
 public:
+	// p2port: IS in CSGO and Portal 2 PDBs, but commented out in Emulsion
+    //virtual ~IMDLCacheNotify() { };
+
 	// Called right after the data is loaded
 	virtual void OnDataLoaded( MDLCacheDataType_t type, MDLHandle_t handle ) = 0;
 
@@ -92,6 +95,7 @@ enum MDLCacheFlush_t
 	MDLCACHE_FLUSH_VIRTUALMODEL		= 0x10,
 	MDLCACHE_FLUSH_AUTOPLAY         = 0x20,
 	MDLCACHE_FLUSH_VERTEXES         = 0x40,
+	MDLCACHE_FLUSH_COMBINED_DATA	= 0x80,
 
 	MDLCACHE_FLUSH_IGNORELOCK       = 0x80000000,
 	MDLCACHE_FLUSH_ALL              = 0xFFFFFFFF
@@ -123,6 +127,7 @@ public:
 	virtual studiohwdata_t *GetHardwareData( MDLHandle_t handle ) = 0;
 	virtual vcollide_t *GetVCollide( MDLHandle_t handle ) = 0;
 	virtual unsigned char *GetAnimBlock( MDLHandle_t handle, int nBlock ) = 0;
+	virtual bool HasAnimBlockBeenPreloaded( MDLHandle_t handle, int nBlock ) = 0;
 	virtual virtualmodel_t *GetVirtualModel( MDLHandle_t handle ) = 0;
 	virtual int GetAutoplayList( MDLHandle_t handle, unsigned short **pOut ) = 0;
 	virtual vertexFileHeader_t *GetVertexData( MDLHandle_t handle ) = 0;
@@ -145,6 +150,8 @@ public:
 
 	// Returns the name of the model (its relative path)
 	virtual const char *GetModelName( MDLHandle_t handle ) = 0;
+
+	virtual IDataCacheSection *GetCacheSection( MDLCacheDataType_t type ) =0;
 
 	// faster access when you already have the studiohdr
 	virtual virtualmodel_t *GetVirtualModelFast( const studiohdr_t *pStudioHdr, MDLHandle_t handle ) = 0;
@@ -197,6 +204,8 @@ public:
 	virtual void EndCoarseLock() = 0;
 
 	virtual void ReloadVCollide( MDLHandle_t handle ) = 0;
+
+	virtual bool ReleaseAnimBlockAllocator() = 0;
 };
 
 DECLARE_TIER3_INTERFACE( IMDLCache, g_pMDLCache );

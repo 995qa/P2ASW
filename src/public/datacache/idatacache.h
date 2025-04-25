@@ -179,6 +179,7 @@ enum DataCacheAddFlags_t
 abstract_class IDataCacheSection
 {
 public:
+    virtual ~IDataCacheSection() { };
 	//--------------------------------------------------------
 
 	virtual IDataCache *GetSharedCache() = 0;
@@ -315,6 +316,13 @@ public:
 
 	// Batch oriented get/lock
 	virtual void GetAndLockMultiple( void **ppData, int nCount, DataCacheHandle_t *pHandles ) = 0;
+
+	// p2port: Not in CSGO or Portal 2 PDBs, but IS in Emulsion
+	//{
+	virtual void OnAdd(/*unsigned int*/DataCacheClientID_t clientId, /*memhandle_t*/DataCacheClientID_t* pHandles) = 0;
+	virtual DataCacheClientID_t DoFind(DataCacheClientID_t clientId) = 0;
+	virtual void OnRemove(DataCacheClientID_t clientId) = 0;
+	//}
 };
 
 
@@ -327,6 +335,7 @@ public:
 abstract_class IDataCacheClient
 {
 public:
+	virtual ~IDataCacheClient() { };
 	//--------------------------------------------------------
 	// 
 	//--------------------------------------------------------
@@ -344,6 +353,8 @@ public:
 class CDefaultDataCacheClient : public IDataCacheClient
 {
 public:
+
+	virtual ~CDefaultDataCacheClient() {}
 	virtual bool HandleCacheNotification( const DataCacheNotification_t &notification  )
 	{
 		switch ( notification.type )

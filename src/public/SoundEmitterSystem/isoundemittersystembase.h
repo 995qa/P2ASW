@@ -23,8 +23,8 @@
 #define SOUNDGENDER_MACRO_LENGTH 7		// Length of above including $
 
 class KeyValues;
-typedef short HSOUNDSCRIPTHANDLE;
-#define SOUNDEMITTER_INVALID_HANDLE	(HSOUNDSCRIPTHANDLE)-1
+typedef unsigned int HSOUNDSCRIPTHASH;
+#define SOUNDEMITTER_INVALID_HASH	(HSOUNDSCRIPTHASH)-1
 
 
 //-----------------------------------------------------------------------------

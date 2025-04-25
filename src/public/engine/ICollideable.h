@@ -71,11 +71,12 @@ public:
 	// Note that this will surround hitboxes, trigger bounds, physics.
 	// It may or may not be a tight-fitting box and its volume may suddenly change
 	virtual void			WorldSpaceSurroundingBounds( Vector *pVecMins, Vector *pVecMaxs ) = 0;
-
-	virtual bool			ShouldTouchTrigger( int triggerSolidFlags ) const = 0;
+	
+	virtual uint			GetRequiredTriggerFlags() const = 0;
 
 	// returns NULL unless this collideable has specified FSOLID_ROOT_PARENT_ALIGNED
 	virtual const matrix3x4_t	*GetRootParentToWorldTransform() const = 0;
+	virtual IPhysicsObject	*GetVPhysicsObject() const = 0;
 };
 
 
