@@ -3452,7 +3452,8 @@ void C_BaseAnimating::DoInternalDrawModel( ClientModelRenderInfo_t *pInfo, DrawM
 {
 	if ( pState)
 	{
-		modelrender->DrawModelExecute( *pState, *pInfo, pBoneToWorldArray );
+		CMatRenderContextPtr pRenderContext( materials );
+		modelrender->DrawModelExecute( pRenderContext, *pState, *pInfo, pBoneToWorldArray );
 	}
 
 	if ( vcollide_wireframe.GetBool() )
