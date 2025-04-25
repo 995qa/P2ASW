@@ -29,6 +29,8 @@ struct studiohwdata_t;
 struct vcollide_t;
 struct virtualmodel_t;
 struct vertexFileHeader_t;
+class KeyValues;
+class IDataCacheSection;
 
 namespace OptimizedModel
 {

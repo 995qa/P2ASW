@@ -21,6 +21,7 @@ class QAngle;
 class CGameTrace;
 typedef CGameTrace trace_t;
 class IClientUnknown;
+class IPhysicsObject;
 
 
 abstract_class ICollideable
