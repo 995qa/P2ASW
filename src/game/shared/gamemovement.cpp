@@ -3787,31 +3787,6 @@ bool CGameMovement::CheckWater( void )
 			if ( cont & MASK_WATER )
 				player->SetWaterLevel( WL_Eyes );  // In over our eyes
 		}
-
-		// Adjust velocity based on water current, if any.
-		if ( cont & MASK_CURRENT )
-		{
-			Vector v;
-			VectorClear(v);
-			if ( cont & CONTENTS_CURRENT_0 )
-				v[0] += 1;
-			if ( cont & CONTENTS_CURRENT_90 )
-				v[1] += 1;
-			if ( cont & CONTENTS_CURRENT_180 )
-				v[0] -= 1;
-			if ( cont & CONTENTS_CURRENT_270 )
-				v[1] -= 1;
-			if ( cont & CONTENTS_CURRENT_UP )
-				v[2] += 1;
-			if ( cont & CONTENTS_CURRENT_DOWN )
-				v[2] -= 1;
-
-			// BUGBUG -- this depends on the value of an unspecified enumerated type
-			// The deeper we are, the stronger the current.
-			Vector temp;
-			VectorMA( player->GetBaseVelocity(), 50.0*player->GetWaterLevel(), v, temp );
-			player->SetBaseVelocity( temp );
-		}
 	}
 
 	// if we just transitioned from not in water to in water, record the time it happened

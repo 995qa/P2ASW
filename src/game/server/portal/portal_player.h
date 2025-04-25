@@ -21,8 +21,8 @@ class CPortal_Player;
 #include "in_buttons.h"
 #include "ai_speech.h"			// For expresser host
 #include "basemultiplayerplayer.h"
-#include "paint/paint_power_user.h"
-#include "paint/paintable_entity.h"
+#include "paint_power_user.h"
+#include "paintable_entity.h"
 #include "ai_basenpc.h"
 #include "npc_security_camera.h"
 #include "prop_portal.h"

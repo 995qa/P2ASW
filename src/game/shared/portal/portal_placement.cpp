@@ -28,7 +28,7 @@
 #include "cegclientwrapper.h"
 
 
-#include "paint/paint_color_manager.h"
+#include "paint_color_manager.h"
 ConVar sv_portal_placement_on_paint("sv_portal_placement_on_paint", "1", FCVAR_REPLICATED | FCVAR_CHEAT, "Enable/Disable placing portal on painted surfaces");
 
 ConVar sv_portal_placement_never_fail("sv_portal_placement_never_fail", "0", FCVAR_REPLICATED | FCVAR_CHEAT );

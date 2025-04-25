@@ -456,7 +456,7 @@ int C_ProjectedWallEntity::DrawModel( int flags, const RenderableInstance_t &ins
 	if ( false ) // Unknown condition
 		return 0;
 
-	if ( HASPAINTMAP && 
+	if ( engine->HasPaintmap && 
 		cl_draw_projected_wall_with_paint.GetBool() &&
 		m_PaintPowers.NumAllocated() == m_nNumSegments ) // FIXME: Compare m_nNumSegments to m_PaintPowers.m_Memory.m_nGrowSize instead
 	{

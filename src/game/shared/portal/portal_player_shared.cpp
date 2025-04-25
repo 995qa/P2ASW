@@ -12,27 +12,13 @@
 #include "debugoverlay_shared.h"
 #include "meshutils/mesh.h"
 #include "in_buttons.h"
-#include "prop_portal_shared.h"
+#include "portal_base2d_shared.h"
 #include "movevars_shared.h"
 #include "util_shared.h"
 #include "portal_util_shared.h"
 #include "collisionutils.h"
 #include "portal_mp_gamerules.h"
 
-#ifndef NO_TRACTOR_BEAM
-#include "trigger_tractorbeam_shared.h"
-#endif
-
-#ifdef GAME_DLL
-BEGIN_SIMPLE_DATADESC( PortalPlayerStatistics_t )
-
-DEFINE_FIELD( iNumPortalsPlaced, FIELD_INTEGER ),
-DEFINE_FIELD( iNumStepsTaken, FIELD_INTEGER ),
-DEFINE_FIELD( fNumSecondsTaken, FIELD_FLOAT ),
-DEFINE_FIELD( fDistanceTaken, FIELD_FLOAT ),
-
-END_DATADESC()
-#endif
 #ifdef CLIENT_DLL
 
 #include "c_portal_player.h"
@@ -52,11 +38,10 @@ extern IViewRender *view;
 extern IViewEffects *GetViewEffects();
 
 #include "cdll_util.h"
-#include "c_prop_portal.h"
-#include "paint/c_weapon_paintgun.h"
-// TODO:
-//#include "c_trigger_catapult.h"
-//#include "c_trigger_tractorbeam.h"
+#include "c_portal_base2d.h"
+#include "c_weapon_paintgun.h"
+#include "c_trigger_catapult.h"
+#include "c_trigger_tractorbeam.h"
 #include "c_basetempentity.h"
 #include "igameevents.h"
 #include "cam_thirdperson.h"
@@ -82,17 +67,15 @@ extern IViewEffects *GetViewEffects();
 
 extern int TrainSpeed(int iSpeed, int iMax);
 
-#include "prop_portal.h"
-#include "paint/paint_database.h"
+#include "portal_base2d.h"
+#include "paint_database.h"
 
 #include "basetempentity.h"
-#include "paint/paint_swap_guns.h"
-#include "paint/weapon_paintgun.h"
+#include "paint_swap_guns.h"
+#include "weapon_paintgun.h"
 #include "weapon_portalgun.h"
 #include "trigger_catapult.h"
-#ifndef NO_TRACTOR_BEAM
 #include "trigger_tractorbeam.h"
-#endif
 #include "physicsshadowclone.h"
 
 #include "explode.h"
@@ -107,7 +90,7 @@ extern int TrainSpeed(int iSpeed, int iMax);
 #include "collisionutils.h"
 #include "portal2/portal_grabcontroller_shared.h"
 #include "portal2/player_pickup.h"
-#include "paint/weapon_paintgun_shared.h"
+#include "weapon_paintgun_shared.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -146,7 +129,7 @@ const float PORTAL_PLANE_IGNORE_EPSILON = 17.0f;
 extern ConVar sv_speed_normal;
 extern ConVar sv_speed_paint_max;
 extern ConVar portal_tauntcam_dist;
-ConVar portal_deathcam_dist( "portal_deathcam_dist", "128", FCVAR_CHEAT | FCVAR_REPLICATED );
+ConVar portal_deathcam_dist( "portal_deathcam_dist", "128", FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY | FCVAR_REPLICATED );
 
 ConVar sv_portal_coop_ping_hud_indicitator_duration( "sv_portal_coop_ping_hud_indicitator_duration", "5", FCVAR_REPLICATED );
 
@@ -243,11 +226,11 @@ ConVar sv_wall_jump_help_amount("sv_wall_jump_help_amount", "5.0f", FCVAR_REPLIC
 ConVar sv_wall_jump_help_debug("sv_wall_jump_help_debug", "0", FCVAR_REPLICATED);
 
 //Debug convars
-ConVar show_player_paint_power_debug( "show_player_paint_power_debug", "0", FCVAR_REPLICATED );
+ConVar show_player_paint_power_debug( "show_player_paint_power_debug", "0", FCVAR_REPLICATED | FCVAR_DEVELOPMENTONLY );
 ConVar mp_should_gib_bots("mp_should_gib_bots", "1", FCVAR_REPLICATED | FCVAR_CHEAT);
-ConVar sv_debug_bounce_reflection("sv_debug_bounce_reflection", "0", FCVAR_REPLICATED );
-ConVar sv_debug_bounce_reflection_time("sv_debug_bounce_reflection_time", "15.f", FCVAR_REPLICATED );
-ConVar paint_compute_contacts_simd("paint_compute_contacts_simd", "0", FCVAR_REPLICATED, "Compute the contacts with paint in fast SIMD (1) or with slower FPU (0)." );
+ConVar sv_debug_bounce_reflection("sv_debug_bounce_reflection", "0", FCVAR_REPLICATED | FCVAR_DEVELOPMENTONLY );
+ConVar sv_debug_bounce_reflection_time("sv_debug_bounce_reflection_time", "15.f", FCVAR_REPLICATED | FCVAR_DEVELOPMENTONLY );
+ConVar paint_compute_contacts_simd("paint_compute_contacts_simd", "1", FCVAR_REPLICATED | FCVAR_DEVELOPMENTONLY, "Compute the contacts with paint in fast SIMD (1) or with slower FPU (0)." );
 
 ConVar prevent_crouch_jump("prevent_crouch_jump", "1", FCVAR_REPLICATED | FCVAR_CHEAT, "Enable/Disable crouch jump prevention.");
 
@@ -318,7 +301,7 @@ void CPortal_Player::PlayStepSound( Vector &vecOrigin, surfacedata_t *psurface, 
 
 	// Play the paint step sound if applicable
 	bool shouldPlayPaintStepSound = false;
-	if( HASPAINTMAP )
+	if( engine->HasPaintmap() )
 	{
 		CBaseEntity const* pGroundEntity = GetGroundEntity();
 		for( unsigned i = 0; i < PAINT_POWER_TYPE_COUNT; ++i )
@@ -1559,12 +1542,11 @@ float CPortal_Player::PredictedBounce( void )
 	fSeconds -= tr.fraction * fStep;
 
 	bool bTouched = false;
-	// TODO:
-#if 0
 	float fLeastFraction = tr.fraction;
 
 	Ray_t ray;
 	ray.Init( tr.startpos, vPos, GetHullMins(), GetHullMaxs() );
+
 	for ( int i = 0; i < ITriggerCatapultAutoList::AutoList().Count(); ++i )
 	{
 		CTriggerCatapult *pCatapult = static_cast< CTriggerCatapult* >( ITriggerCatapultAutoList::AutoList()[ i ] );
@@ -1589,7 +1571,7 @@ float CPortal_Player::PredictedBounce( void )
 			}
 		}
 	}
-#endif
+
 	fSeconds += tr.fraction * fStep;
 
 	if ( bTouched )
@@ -1634,7 +1616,7 @@ const char *CPortal_Player::GetPlayerModelName( void )
 #endif // PORTAL2_PUZZLEMAKER
 	if ( GameRules()->IsMultiplayer() )
 	{
-#if !defined( NO_STEAM ) && !defined( NO_STEAM_GAMECOORDINATOR ) && 0
+#if !defined( NO_STEAM ) && !defined( NO_STEAM_GAMECOORDINATOR )
 		int iBot = ( GetTeamNumber() == TEAM_BLUE ) ? P2BOT_ATLAS : P2BOT_PBODY;
 		m_bIsBendy = false;
 
@@ -2264,7 +2246,7 @@ void CPortal_Player::ChooseActivePaintPowers( PaintPowerInfoVector& activePowers
 				paintedPowerQuery.AddToTail( paintedPower );
 			}
 		}
-		
+
 		// Choose the best surface to use the painted power on
 		PaintPowerChoiceResultArray bestPaintedPowers;
 		PaintPowerChoiceCriteria_t paintedChoiceCriteria = choiceCriteria;
@@ -2473,238 +2455,8 @@ void CPortal_Player::AddSurfacePaintPowerInfo( const BrushContact& contact, char
 }
 
 
-// In Swarm, we're limited by some engine functions that Portal 2 used, but aren't available in Swarm.
-// FIXME: All of this needs to be reverted/ifdef'd for the portal 2 engine port
-
-// This fires 8 hull traces from the center of the player ending at each of the player's bounding box vertices.
-#define PAINT_DETECTION_8TRACES 1
-
-// This method fires 6 hull traces from the bottom, up, forward, backwards, left, right, the hull size is the same as the player's hull.
-#define PAINT_DETECTION_6TRACES 2 // Unfinished
-
-// Normal Portal 2 detection, can't detect brush *entities* at the moment.
-#define PAINT_DETECTION_BRUSHCONTACTS 3
-
-// Normal Portal 2 detection combined with 8 hull traces, used to work around the brush entity issue.
-#define PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES 4
-
-
-#define PAINT_DETECTION_METHOD PAINT_DETECTION_BRUSHCONTACTS
-
-#if ( PAINT_DETECTION_METHOD == PAINT_DETECTION_8TRACES ) || ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES )
-enum
-{
-	//PAINT_TRACE_ABSORIGIN,
-	PAINT_TRACE_BOTTOM_CORNER1,
-	PAINT_TRACE_BOTTOM_CORNER2,
-	PAINT_TRACE_BOTTOM_CORNER3,
-	PAINT_TRACE_BOTTOM_CORNER4,
-	PAINT_TRACE_TOP_CORNER1,
-	PAINT_TRACE_TOP_CORNER2,
-	PAINT_TRACE_TOP_CORNER3,
-	PAINT_TRACE_TOP_CORNER4,
-	PAINT_TRACE_COUNT
-};
-#elif ( PAINT_DETECTION_METHOD == PAINT_DETECTION_6TRACES )
-enum
-{
-#if 0
-	PAINT_TRACE_BOTTOM,
-	PAINT_TRACE_TOP,
-	PAINT_TRACE_FORWARD,
-	PAINT_TRACE_BACK,
-	PAINT_TRACE_LEFT,
-	PAINT_TRACE_RIGHT,
-#else
-	PAINT_TRACE_NORMAL,
-#endif
-	PAINT_TRACE_COUNT
-};
-#endif
-
-#if ( PAINT_DETECTION_METHOD == PAINT_DETECTION_8TRACES ) || ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES )
-#define PAINT_TRACE_EXTENTS_VALUE 1
-#define PAINT_TRACE_MINS Vector( -PAINT_TRACE_EXTENTS_VALUE, -PAINT_TRACE_EXTENTS_VALUE, -PAINT_TRACE_EXTENTS_VALUE )
-#define PAINT_TRACE_MAXS Vector( PAINT_TRACE_EXTENTS_VALUE, PAINT_TRACE_EXTENTS_VALUE, PAINT_TRACE_EXTENTS_VALUE )
-#elif ( PAINT_DETECTION_METHOD == PAINT_DETECTION_6TRACES )
-#define PAINT_TRACE_MINS GetPlayerMins()
-#define PAINT_TRACE_MAXS GetPlayerMaxs()
-#endif
-
-const Vector DEFAULT_SURFACE_NORMAL;
-
-#define FORGIVENESS_MULTIPLIER 0.03
-void CPortal_Player::DetermineTraceInfo( Vector &vStart, Vector &vEnd, Vector &vMins, Vector vMaxs, int iTraceType )
-{
-#if ( PAINT_DETECTION_METHOD == PAINT_DETECTION_8TRACES ) || ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES )
-	vMins = PAINT_TRACE_MINS;
-	vMaxs = PAINT_TRACE_MAXS;
-	// Set the start to the center
-	vStart = GetAbsOrigin();
-	vStart.z = GetAbsOrigin().z + GetHullHeight() * 0.5; 
-
-	float flHalfHullWidth = GetHullWidth() * 0.5;
-	Vector vOrigin = GetAbsOrigin();
-
-	// NOTE: We need this because using the direct vertex positions won't work!
-	float flForwardForgiveness;
-	float flBackwardForgiveness;
-	float flRightForgiveness;
-	float flLeftForgiveness;
-	float flTopForgiveness;
-	float flBottomForgiveness;
-
-	if ( !(GetFlags() & FL_ONGROUND) )
-	{
-		flForwardForgiveness = 1;
-		flBackwardForgiveness = -1;
-		flLeftForgiveness = 1;
-		flRightForgiveness = -1;
-		flTopForgiveness = 1;
-		flBottomForgiveness = -1;
-		
-		if (GetAbsVelocity().x > 0)
-		{
-			flForwardForgiveness += ( GetAbsVelocity().x * FORGIVENESS_MULTIPLIER );
-		}
-		else
-		{
-			flBackwardForgiveness -= ( GetAbsVelocity().x * FORGIVENESS_MULTIPLIER );
-		}
-		
-		if (GetAbsVelocity().y > 0)
-		{
-			flLeftForgiveness += ( GetAbsVelocity().y * FORGIVENESS_MULTIPLIER );
-		}
-		else
-		{
-			flRightForgiveness -= ( GetAbsVelocity().y * FORGIVENESS_MULTIPLIER );
-		}
-
-		if (GetAbsVelocity().z > 0)
-		{
-			flTopForgiveness += ( GetAbsVelocity().z * FORGIVENESS_MULTIPLIER );
-		}
-		else
-		{
-			flBottomForgiveness -= ( GetAbsVelocity().z * FORGIVENESS_MULTIPLIER );
-		}
-	}
-	else
-	{
-		flForwardForgiveness = 1;
-		flBackwardForgiveness = 1;
-		flLeftForgiveness = 1;
-		flRightForgiveness = 1;
-		flTopForgiveness = 1;
-		flBottomForgiveness = 1;
-	}
-
-	//if ( iTraceType == PAINT_TRACE_ABSORIGIN )
-	//	vStart = vOrigin;
-	if (iTraceType == PAINT_TRACE_BOTTOM_CORNER1)
-	{
-		vEnd.x = vOrigin.x + (flHalfHullWidth + flForwardForgiveness);
-		vEnd.y = vOrigin.y + (flHalfHullWidth + flLeftForgiveness);
-		vEnd.z = vOrigin.z - flBottomForgiveness;
-	}
-	else if (iTraceType == PAINT_TRACE_BOTTOM_CORNER2)
-	{
-		vEnd.x = vOrigin.x - (flHalfHullWidth + flBackwardForgiveness);
-		vEnd.y = vOrigin.y + (flHalfHullWidth + flLeftForgiveness);
-		vEnd.z = vOrigin.z - flBottomForgiveness;
-	}
-	else if (iTraceType == PAINT_TRACE_BOTTOM_CORNER3)
-	{
-		vEnd.x = vOrigin.x + (flHalfHullWidth + flForwardForgiveness);
-		vEnd.y = vOrigin.y - (flHalfHullWidth + flRightForgiveness);
-		vEnd.z = vOrigin.z - flBottomForgiveness;
-	}
-	else if (iTraceType == PAINT_TRACE_BOTTOM_CORNER4)
-	{
-		vEnd.x = vOrigin.x - (flHalfHullWidth + flBackwardForgiveness);
-		vEnd.y = vOrigin.y - (flHalfHullWidth + flRightForgiveness);
-		vEnd.z = vOrigin.z - flBottomForgiveness;
-	}
-	else if (iTraceType == PAINT_TRACE_TOP_CORNER1)
-	{
-		vEnd.x = vOrigin.x + (flHalfHullWidth + flForwardForgiveness);
-		vEnd.y = vOrigin.y + (flHalfHullWidth + flLeftForgiveness);
-		vEnd.z = vOrigin.z + GetHullHeight() + flTopForgiveness;
-	}
-	else if (iTraceType == PAINT_TRACE_TOP_CORNER2)
-	{
-		vEnd.x = vOrigin.x - (flHalfHullWidth + flBackwardForgiveness);
-		vEnd.y = vOrigin.y + (flHalfHullWidth + flLeftForgiveness);
-		vEnd.z = vOrigin.z + GetHullHeight() + flTopForgiveness;
-	}
-	else if (iTraceType == PAINT_TRACE_TOP_CORNER3)
-	{
-		vEnd.x = vOrigin.x + (flHalfHullWidth + flForwardForgiveness);
-		vEnd.y = vOrigin.y - (flHalfHullWidth + flRightForgiveness);
-		vEnd.z = vOrigin.z + GetHullHeight() + flTopForgiveness;
-	}
-	else if (iTraceType == PAINT_TRACE_TOP_CORNER4)
-	{
-		vEnd.x = vOrigin.x - (flHalfHullWidth + flBackwardForgiveness);
-		vEnd.y = vOrigin.y - (flHalfHullWidth + flRightForgiveness);
-		vEnd.z = vOrigin.z + GetHullHeight() + flTopForgiveness;
-	}
-#elif ( PAINT_DETECTION_METHOD == PAINT_DETECTION_6TRACES )
-	// Set the start to the center
-	vStart = GetAbsOrigin();
-	Vector vOrigin = GetAbsOrigin();
-
-	// NOTE: We need this because using the direct vertex positions won't work!
-	float flForwardForgiveness = 1;
-	float flRightForgiveness = 1;
-	float flUpForgiveness = 1;
-
-	if ( !(GetFlags() & FL_ONGROUND) )
-	{
-		flForwardForgiveness = flForwardForgiveness += ( GetAbsVelocity().x * FORGIVENESS_MULTIPLIER );
-		flRightForgiveness = flRightForgiveness += ( GetAbsVelocity().y * FORGIVENESS_MULTIPLIER );
-		flUpForgiveness = flUpForgiveness += ( GetAbsVelocity().z * FORGIVENESS_MULTIPLIER );
-	}
-	else
-	{
-		flForwardForgiveness = 1;
-		flRightForgiveness = 1;
-		flUpForgiveness = 1;
-	}
-
-	Vector vStick = m_PortalLocal.m_StickNormal;
-
-	vMins.x = PAINT_TRACE_MINS.x - flForwardForgiveness;
-	vMins.y = PAINT_TRACE_MINS.y - flRightForgiveness;
-	vMins.z = PAINT_TRACE_MINS.z - flUpForgiveness;
-	
-	vMaxs.x = PAINT_TRACE_MAXS.x + flForwardForgiveness;
-	vMaxs.y = PAINT_TRACE_MAXS.y + flRightForgiveness;
-	vMaxs.z = PAINT_TRACE_MAXS.z + flUpForgiveness;
-
-	//if ( iTraceType == PAINT_TRACE_ABSORIGIN )
-	//	vStart = vOrigin;
-	if (iTraceType == PAINT_TRACE_NORMAL)
-	{
-		vEnd.x = vOrigin.x + ( flForwardForgiveness );
-		vEnd.y = vOrigin.y + ( flRightForgiveness );
-		vEnd.z = vOrigin.z + ( flUpForgiveness );
-	}
-	
-	// Now rotate these values for our stick normal.
-	VMatrix rotate;
-	MatrixBuildRotation( rotate, DEFAULT_SURFACE_NORMAL, vStick );
-
-	VectorRotate( vEnd, rotate.As3x4(), vEnd );
-
-#endif
-}
-
 void CPortal_Player::AddSurfacePaintPowerInfo( const trace_t& trace, char const* context )
 {
-#if ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS ) || ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES )
-
 	if( trace.m_pEnt )
 	{
 		if( trace.m_pEnt->IsBSPModel() )
@@ -2737,87 +2489,11 @@ void CPortal_Player::AddSurfacePaintPowerInfo( const trace_t& trace, char const*
 														context );	
 		}
 	}
-
-#endif // PAINT_DETECTION_BRUSHCONTACTS || PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES
-#if ( PAINT_DETECTION_METHOD == PAINT_DETECTION_8TRACES ) || ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES )
-	// Hacks since we're limited by the engine code
-	
-#if ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES )
-	if ( ( !trace.DidHitWorld() || !trace.DidHit() ) && m_PortalLocal.m_PaintedPowerType != NO_POWER )
-		return;
-
-	UTIL_ClearTrace( *(trace_t*)&trace );
-
-#else
-
-	m_PortalLocal.m_PaintedPowerType = NO_POWER;
-
-#endif
-		if (GetMoveType() == MOVETYPE_NOCLIP)
-		return;
-
-	CTraceFilterNoPlayers filter;
-	Vector vStart;
-	Vector vEnd;
-	Vector vMins;
-	Vector vMaxs;
-	for (int i = 0; i < PAINT_TRACE_COUNT; ++i)
-	{			
-
-		DetermineTraceInfo( vStart, vEnd, vMins, vMaxs, i );
-
-		//Ray_t ray;
-		//ray.Init( vStart, vEnd );
-		//UTIL_Portal_TraceRay( ray, MASK_SOLID, &filter, const_cast<trace_t*>(&trace) );
-
-		UTIL_TraceHull( vStart, vEnd, vMins, vMaxs, MASK_SOLID, &filter, const_cast<trace_t*>(&trace) );
-		//UTIL_TraceLine( vStart, vEnd, MASK_SOLID, &filter, const_cast<trace_t*>(&trace) );
-	
-		if ( !trace.m_pEnt )
-			continue;
-
-#if ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES )
-		if ( trace.DidHitWorld() )
-			continue;
-#endif
-	
-		if( trace.m_pEnt->IsBSPModel() )
-		{
-			m_PortalLocal.m_PaintedPowerType = UTIL_Paint_TracePower( trace.m_pEnt, trace.endpos, trace.plane.normal );
-
-			if (m_PortalLocal.m_PaintedPowerType == NO_POWER)
-				continue;
-
-			PaintPowerInfo_t powerInfo;
-			
-			powerInfo.m_PaintPowerType = m_PortalLocal.m_PaintedPowerType;
-			powerInfo.m_ContactPoint = trace.endpos;
-			powerInfo.m_SurfaceNormal = trace.plane.normal;
-
-			AddSurfacePaintPowerInfo( powerInfo, context );
-
-			return; // Don't fire new traces if we found a paint power.
-
-		}		
-		/*else
-		{
-			CPaintableEntity* pPaintableEnt = dynamic_cast<CPaintableEntity*>( trace.m_pEnt );
-
-			if ( pPaintableEnt )
-			{
-				m_PortalLocal.m_PaintedPowerType = pPaintableEnt->GetPaintedPower();
-				return; // Don't fire new traces if we found a paint power.
-			}
-		}*/
-	}
-#endif
 }
 
 
 void CPortal_Player::DeterminePaintContacts()
 {
-#if ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS ) || ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES )
-
 	if( GetMoveType() == MOVETYPE_NOCLIP )
 	{
 		return;
@@ -2885,10 +2561,6 @@ void CPortal_Player::DeterminePaintContacts()
 	{
 		PredictPaintContacts( contactBoxMin, contactBoxMax, traceBoxMin, traceBoxMax, jump_helper_look_ahead_time.GetFloat(), JUMP_HELPER_CONTEXT );
 	}
-#else
-	trace_t tr;
-	AddSurfacePaintPowerInfo( tr );
-#endif
 }
 
 
@@ -3094,12 +2766,13 @@ bool CPortal_Player::IsHoldingJumpKey() const
 }
 
 
-bool CPortal_Player::IsTryingToSuperJump( const PaintPowerInfo_t* pInfo ) const
+CEG_NOINLINE bool CPortal_Player::IsTryingToSuperJump( const PaintPowerInfo_t* pInfo ) const
 {
 	if( !pInfo )
 		return false;
 
 	const int superJumpMode = sv_press_jump_to_bounce.GetInt();
+	static const int CEG_SPEED_POWER = SPEED_POWER;
 
 	// For the trampoline bounce mode, the player can bounce if the velocity is significantly toward the surface.
 	// Note that this condition requires the player be in the air. That is because we must always detect this case
@@ -3116,7 +2789,7 @@ bool CPortal_Player::IsTryingToSuperJump( const PaintPowerInfo_t* pInfo ) const
 	const bool canTrampolineBounceOffWall = trampoline_bounce_off_walls_while_on_ground.GetBool() || isInAir;
 	const bool spaceBarActivatedTrampolineJump = IsPressingJumpKey() && jump_button_can_activate_trampoline_bounce.GetBool();
 	const bool canAutoLongJump = MaxSpeed() > bounce_auto_trigger_min_speed.GetFloat() &&
-								 !IsActivatingPower( GetPaintPower( SPEED_POWER ) ) &&
+								 !IsActivatingPower( GetPaintPower( CEG_SPEED_POWER ) ) &&
 								 !isInAir &&
 								 ( !look_dependent_auto_long_jump_enabled.GetBool() || DotProduct( Forward(), velocity.Normalized() ) >= look_dependent_auto_long_jump_min_cos_angle.GetFloat() );
 	const bool canTrampolineBounce = ( superJumpMode == TRAMPOLINE_BOUNCE ) &&
@@ -3141,10 +2814,10 @@ bool CPortal_Player::IsTryingToSuperJump( const PaintPowerInfo_t* pInfo ) const
 
 void CPortal_Player::SetJumpedThisFrame( bool jumped )
 {
-	if( jumped != m_PortalLocal.m_bJumpedThisFrame )
+	/*if( jumped != m_PortalLocal.m_bJumpedThisFrame )
 	{
-		//EASY_DIFFPRINT( this, "CPortal_Player::SetJumpedThisFrame() %s", jumped ? "true" : "false" );
-	}
+		EASY_DIFFPRINT( this, "CPortal_Player::SetJumpedThisFrame() %s", jumped ? "true" : "false" );
+	}*/
 	m_PortalLocal.m_bJumpedThisFrame = jumped;
 }
 
@@ -3173,7 +2846,7 @@ InAirState CPortal_Player::GetInAirState() const
 }
 
 // Extracted and noinlined to give us a standalone callsite to protect
-void UpdatePaintZ( Vector &velocity, float inGravity )
+CEG_NOINLINE void UpdatePaintZ( Vector &velocity, float inGravity )
 {
 	// Find the height the player will go at the current velocity
 	// 0 = v0 + g * t
@@ -3195,8 +2868,13 @@ void UpdatePaintZ( Vector &velocity, float inGravity )
 	velocity.z = sqrt( 2 * -gravity * targetHeight ); // Negate gravity so the value is valid
 }
 
+#ifdef CLIENT_DLL
+CEG_PROTECT_FUNCTION( UpdatePaintZ );
+#endif
+
 bool CPortal_Player::CheckToUseBouncePower( PaintPowerInfo_t& info )
 {	
+
 	// Crouching opts out of using bounce powers
 	const bool bIsCrouching = m_Local.m_bDucking || GetFlags() & FL_DUCKING || m_PortalLocal.m_bPreventedCrouchJumpThisFrame;
 	const bool bShouldJump = IsTryingToSuperJump( &info );
@@ -4512,63 +4190,38 @@ void ComputeAABBContactsWithBrushEntity_Old( ContactVector& contacts, const cpla
 	//typedef BrushSideInfo_t* BrushSideInfoIterator;
 	// Get the collision model index of the brush entity
 	AssertMsg( pBrushEntity->IsBSPModel(), "Your brush entity is not a brush entity." );
-#ifdef DEBUG
 	ICollideable* pCollideable = enginetrace->GetCollideable( pBrushEntity );
 	const int cmodelIndex = pCollideable->GetCollisionModelIndex() - 1;
 	AssertMsg( !pBrushEntity->IsWorld() || cmodelIndex == 0, "World collision model index should be 0." );
-#endif
-	// The query box must be in local space for non-world brush entities
+	const matrix3x4_t& entityToWorld = pBrushEntity->EntityToWorldTransform();
 
+	// The query box must be in local space for non-world brush entities
 	Vector queryBoxMin = boxMin;
 	Vector queryBoxMax = boxMax;
 	if( !pBrushEntity->IsWorld() )
 	{
-		const matrix3x4_t& entityToWorld = pBrushEntity->EntityToWorldTransform();
 		ITransformAABB( entityToWorld, boxMin, boxMax, queryBoxMin, queryBoxMax );
 	}
 
-	// Draw bbox lines if necessary
-	//DebugDrawLine( queryBoxMin, queryBoxMax, 0, 255, 0, false, 0.25 );
-
 	// Get the indices of all the colliding brushes
 	//BrushIndexVector brushIndices;
-	//CBrushQuery brushQuery;
-	CUtlVector<int> WorldBrushes;
-	enginetrace->GetBrushesInAABB( queryBoxMin, queryBoxMax, &WorldBrushes, contentsMask );
+	CBrushQuery brushQuery;
+	enginetrace->GetBrushesInAABB( queryBoxMin, queryBoxMax, brushQuery, contentsMask, cmodelIndex );
 
 	// Find the contact regions
-	CUtlVector<BrushSideInfo_t> brushSides;
-	//BrushSideInfo_t *brushSides = (BrushSideInfo_t *)stackalloc( sizeof( BrushSideInfo_t ) * COMMON_BRUSH_SIDES );
+	//BrushSideInfoVector brushSides;
+	BrushSideInfo_t *brushSides = (BrushSideInfo_t *)stackalloc( sizeof( BrushSideInfo_t ) * brushQuery.MaxBrushSides() );
 	//PlaneVector planes;
-	
-	//if ( !pBrushEntity->IsWorld() )
-	//	Msg("Not the world..?\n");
-
-	for( int i = 0; i < WorldBrushes.Count(); ++i )
+	Vector4D *planes = (Vector4D *)stackalloc( sizeof( Vector4D ) * (brushQuery.MaxBrushSides() + 6 /*bbox*/ + iClipPlaneCount) );
+	for( int i = 0; i < brushQuery.Count(); ++i )
 	{
 		// Get the brush side info
 		int iBrushContents;
-#ifdef DEBUG
-		bool bHasBrushInfo = enginetrace->GetBrushInfo( WorldBrushes[i], &brushSides, &iBrushContents );
-#else // Bleh, unreferenced local variable
-		enginetrace->GetBrushInfo( WorldBrushes[i], &brushSides, &iBrushContents );
-#endif
-		int iNumBrushSides = brushSides.Count();
+		int iNumBrushSides = enginetrace->GetBrushInfo( brushQuery[i], iBrushContents, brushSides, brushQuery.MaxBrushSides() );
 		Assert( iNumBrushSides > 0 );
-
-#ifdef DEBUG // If this triggers, we need to rewrite the condition
-		if ( iNumBrushSides <= 0 )
-			Assert( !bHasBrushInfo );
-
-		//if ( !pBrushEntity->IsWorld() )
-		//	Msg("This entity is not the world!! Whoohoo!!\n");
-#endif
-
 		if( iNumBrushSides <= 0 )
 			continue;
-		
-		Vector4D *planes = (Vector4D *)stackalloc( sizeof( Vector4D ) * (brushSides.Count() + 6 /*bbox*/ + iClipPlaneCount) );
-		
+
 		//remove bevel planes
 		{
 			int iWriteIndex = 0;
@@ -4586,10 +4239,9 @@ void ComputeAABBContactsWithBrushEntity_Old( ContactVector& contacts, const cpla
 		// Transform the planes to world space
 		for( int sideIndex = 0; sideIndex < iNumBrushSides; ++sideIndex )
 		{
-			//cplane_t cur = brushSides[sideIndex].plane;
-			//cplane_t temp;
-			//MatrixTransformPlane( entityToWorld, cur, temp );
-			planes[sideIndex] = brushSides[sideIndex].plane;//Vector4D( temp.normal.x, temp.normal.y, temp.normal.z, temp.dist );
+			cplane_t temp;
+			MatrixTransformPlane( entityToWorld, brushSides[sideIndex].plane, temp );
+			planes[sideIndex] = Vector4D( temp.normal.x, temp.normal.y, temp.normal.z, temp.dist );
 		}
 
 		int iPlaneCount = iNumBrushSides;
@@ -4606,7 +4258,7 @@ void ComputeAABBContactsWithBrushEntity_Old( ContactVector& contacts, const cpla
 			++iPlaneCount;
 		}
 
-		Assert( iPlaneCount <= (brushSides.Count() + 6 + iClipPlaneCount) );
+		Assert( iPlaneCount <= (brushQuery.MaxBrushSides() + 6 + iClipPlaneCount) );
 
 		// Compute the contact region
 		CMesh contactRegion;
@@ -4650,7 +4302,6 @@ void ComputeAABBContactsWithBrushEntity_Old( ContactVector& contacts, const cpla
 
 void ComputeAABBContactsWithBrushEntity_SIMD( ContactVector& contacts, const cplane_t *pClipPlanes, int iClipPlaneCount, const Vector& boxOrigin, const Vector& boxMin, const Vector& boxMax, CBaseEntity* pBrushEntity, int contentsMask)
 {
-#if ( ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS ) || ( PAINT_DETECTION_METHOD == PAINT_DETECTION_BRUSHCONTACTS_AND_8TRACES ) ) && 1
 	//typedef CUtlVector<int>	BrushIndexVector;
 	typedef CUtlVector<uint16> PlaneIndexVector;
 	//typedef CUtlVector<BrushSideInfo_t> BrushSideInfoVector;
@@ -4658,7 +4309,6 @@ void ComputeAABBContactsWithBrushEntity_SIMD( ContactVector& contacts, const cpl
 	// Get the collision model index of the brush entity
 	AssertMsg( pBrushEntity->IsBSPModel(), "Your brush entity is not a brush entity." );
 	ICollideable* pCollideable = enginetrace->GetCollideable( pBrushEntity );
-#pragma warning( disable : 4189 )
 	const int cmodelIndex = pCollideable->GetCollisionModelIndex() - 1;
 	AssertMsg( !pBrushEntity->IsWorld() || cmodelIndex == 0, "World collision model index should be 0." );
 	const matrix3x4_t& entityToWorld = pBrushEntity->EntityToWorldTransform();
@@ -4673,49 +4323,29 @@ void ComputeAABBContactsWithBrushEntity_SIMD( ContactVector& contacts, const cpl
 
 	// Get the indices of all the colliding brushes
 	//BrushIndexVector brushIndices;
-	//CBrushQuery brushQuery;
-	CUtlVector<int> WorldBrushes;
-	enginetrace->GetBrushesInAABB( queryBoxMin, queryBoxMax, &WorldBrushes, contentsMask );
+	CBrushQuery brushQuery;
+	enginetrace->GetBrushesInAABB( queryBoxMin, queryBoxMax, brushQuery, contentsMask, cmodelIndex );
 
 	// Find the contact regions
 	//BrushSideInfoVector brushSides;
-	//BrushSideInfo_t *brushSides = (BrushSideInfo_t *)stackalloc( sizeof( BrushSideInfo_t ) * brushQuery.MaxBrushSides() );
-	CUtlVector<BrushSideInfo_t> brushSides;
+	BrushSideInfo_t *brushSides = (BrushSideInfo_t *)stackalloc( sizeof( BrushSideInfo_t ) * brushQuery.MaxBrushSides() );
 	//PlaneVector planes;
+	const int NUMBER_OF_FLTX4 = brushQuery.MaxBrushSides() + 6 /*bbox*/ + iClipPlaneCount;
+	fltx4 *planes = (fltx4 *)stackalloc( sizeof( fltx4 ) * ( NUMBER_OF_FLTX4 + 1 ) );		// +1 for VMX alignment
+	planes = (fltx4*)ALIGN_VALUE( (int)planes, sizeof(fltx4) );
+
 	fltx4 f4BoxMin = LoadUnalignedSIMD( &boxMin.x );
 	fltx4 f4BoxMax = LoadUnalignedSIMD( &boxMax.x );
 	fltx4 f4BoxOrigin = LoadUnalignedSIMD( &boxOrigin.x );
 
-	for( int i = 0; i < WorldBrushes.Count(); ++i )
+	for( int i = 0; i < brushQuery.Count(); ++i )
 	{
 		// Get the brush side info
 		int iBrushContents;
-#ifdef DEBUG
-		bool bHasBrushInfo = enginetrace->GetBrushInfo( WorldBrushes[i], &brushSides, &iBrushContents );
-#else // Bleh, unreferenced local variable
-		enginetrace->GetBrushInfo( WorldBrushes[i], &brushSides, &iBrushContents );
-#endif
-		int iNumBrushSides = brushSides.Count();
+		int iNumBrushSides = enginetrace->GetBrushInfo( brushQuery[i], iBrushContents, brushSides, brushQuery.MaxBrushSides() );
 		Assert( iNumBrushSides > 0 );
-
-#ifdef DEBUG // If this triggers, we need to rewrite the condition
-		if ( iNumBrushSides <= 0 )
-			Assert( !bHasBrushInfo );
-
-		//if ( !pBrushEntity->IsWorld() )
-		//	Msg("This entity is not the world!! Whoohoo!!\n");
-#endif
-		
-#if 0
-		const int NUMBER_OF_FLTX4 = brushSides.Count() + 6 /*bbox*/ + iClipPlaneCount;
-
-		Vector4D *planes = (Vector4D *)stackalloc( sizeof( Vector4D ) * ( NUMBER_OF_FLTX4 + 1 ) );
-#else
-		const int NUMBER_OF_FLTX4 = brushSides.Count() + 6 /*bbox*/ + iClipPlaneCount;
-
-		fltx4 *planes = (fltx4 *)stackalloc( sizeof( fltx4 ) * ( NUMBER_OF_FLTX4 + 1 ) );		// +1 for VMX alignment
-		planes = (fltx4*)ALIGN_VALUE( (int)planes, sizeof(fltx4) );
-#endif
+		if( iNumBrushSides <= 0 )
+			continue;
 
 		//remove bevel planes
 		{
@@ -4734,16 +4364,9 @@ void ComputeAABBContactsWithBrushEntity_SIMD( ContactVector& contacts, const cpl
 		// Transform the planes to world space
 		for( int sideIndex = 0; sideIndex < iNumBrushSides; ++sideIndex )
 		{
-#if 1
-			cplane_t planeConverted;
-			Vector4DPlane( brushSides[sideIndex].plane, &planeConverted );
-
 			cplane_t temp;
-			MatrixTransformPlane( entityToWorld, planeConverted, temp );		// Could be optimized further here...
+			MatrixTransformPlane( entityToWorld, brushSides[sideIndex].plane, temp );		// Could be optimized further here...
 			planes[sideIndex] = LoadUnalignedSIMD(&temp.normal);		// Read XYZ and dist of the plane
-#else
-			planes[sideIndex] = brushSides[sideIndex].plane;
-#endif
 		}
 
 		int iPlaneCount = iNumBrushSides;
@@ -4827,7 +4450,6 @@ void ComputeAABBContactsWithBrushEntity_SIMD( ContactVector& contacts, const cpl
 			NDebugOverlay::Line( contact.point, contact.point + 20.0f * contact.normal, color.r(), color.g(), color.b(), true, 0 );
 		}
 	}
-#endif
 }
 
 void ComputeAABBContactsWithBrushEntity( ContactVector& contacts, const cplane_t *pClipPlanes, int iClipPlaneCount, const Vector& boxOrigin, const Vector& boxMin, const Vector& boxMax, CBaseEntity* pBrushEntity, int contentsMask)
@@ -4835,7 +4457,7 @@ void ComputeAABBContactsWithBrushEntity( ContactVector& contacts, const cplane_t
 	if ( paint_compute_contacts_simd.GetBool() )
 	{
 		ComputeAABBContactsWithBrushEntity_SIMD( contacts, pClipPlanes, iClipPlaneCount, boxOrigin, boxMin, boxMax, pBrushEntity, contentsMask );
-#if _DEBUG && 1
+#if _DEBUG
 		ContactVector fpuContacts;
 		ComputeAABBContactsWithBrushEntity_Old( fpuContacts, pClipPlanes, iClipPlaneCount, boxOrigin, boxMin, boxMax, pBrushEntity, contentsMask );
 
@@ -4978,15 +4600,15 @@ Vector CPortal_Player::EyePosition()
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-
-extern ConVar paintgun_ammo_type;
+// FIXME: Bring this back for DLC2
+#define paintgun_ammo_type 0 //extern ConVar paintgun_ammo_type;
 void CPortal_Player::ItemPostFrame()
 {
 	BaseClass::ItemPostFrame();
 
 	CBaseCombatWeapon* pActiveWeapon = GetActiveWeapon();
 	if( m_hUseEntity != NULL &&
-		paintgun_ammo_type.GetInt() != PAINT_AMMO_NONE &&
+		paintgun_ammo_type != PAINT_AMMO_NONE &&
 		pActiveWeapon != NULL &&
 		FClassnameIs( pActiveWeapon, "weapon_paintgun" ) )
 	{
@@ -5483,10 +5105,9 @@ void CPortalPlayerShared::ConditionGameRulesThink( void )
 #endif
 }
 
-#ifndef NO_TRACTOR_BEAM
+
 void CPortal_Player::SetInTractorBeam( CTrigger_TractorBeam *pTractorBeam )
 {
-	// TODO:
 	if ( !pTractorBeam )
 		return;
 
@@ -5522,8 +5143,7 @@ void CPortal_Player::SetInTractorBeam( CTrigger_TractorBeam *pTractorBeam )
 	m_Local.m_fTBeamEndTime = 0.0f;
 	SetGravity( FLT_MIN );
 
-	// TODO:
-#if defined ( GAME_DLL ) && 1
+#ifdef GAME_DLL
 	triggerevent_t event;
 	if ( PhysGetTriggerEvent( &event, pTractorBeam ) && event.pObject )
 	{
@@ -5588,7 +5208,6 @@ void CPortal_Player::SetLeaveTractorBeam( CTrigger_TractorBeam *pTractorBeam, bo
 		}
 	}
 }
-#endif // #if 0
 
 
 void CPortal_Player::SetHullHeight( float flHeight )

@@ -11,7 +11,7 @@
 #endif
 
 #include "engine/IEngineTrace.h"
-#include "paint/paint_color_manager.h"
+#include "paint_color_manager.h"
 
 extern bool g_bBulletPortalTrace;
 

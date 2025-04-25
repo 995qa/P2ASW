@@ -37,7 +37,7 @@
 #include "vscript_server.h"
 
 #ifdef PORTAL2
-#include "paint/paint_stream_manager.h"
+#include "paint_stream_manager.h"
 #endif
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -517,7 +517,6 @@ BEGIN_DATADESC( CWorld )
 	DEFINE_KEYFIELD( m_bDisplayTitle,	FIELD_BOOLEAN, "gametitle" ),
 	DEFINE_FIELD( m_WorldMins, FIELD_VECTOR ),
 	DEFINE_FIELD( m_WorldMaxs, FIELD_VECTOR ),
-	DEFINE_FIELD( m_bHasPaintMap, FIELD_BOOLEAN ),
 
 	// DEFINE_FIELD( m_flMaxOccludeeArea,	FIELD_CLASSCHECK_IGNORE ) // do this or else we get a warning about multiply-defined fields	
 	// DEFINE_FIELD( m_flMinOccluderArea,	FIELD_CLASSCHECK_IGNORE ) // do this or else we get a warning about multiply-defined fields	
@@ -556,8 +555,6 @@ IMPLEMENT_SERVERCLASS_ST(CWorld, DT_WORLD)
 #ifdef PORTAL2
 	SendPropInt		(SENDINFO(m_nMaxBlobCount), 0, SPROP_UNSIGNED),
 #endif
-	
-	SendPropBool	(SENDINFO(m_bHasPaintMap) ),
 
 END_SEND_TABLE()
 
@@ -712,9 +709,6 @@ void CWorld::Spawn( void )
 	Precache( );
 	GlobalEntity_Add( "is_console", STRING(gpGlobals->mapname), ( IsConsole() ) ? GLOBAL_ON : GLOBAL_OFF );
 	GlobalEntity_Add( "is_pc", STRING(gpGlobals->mapname), ( !IsConsole() ) ? GLOBAL_ON : GLOBAL_OFF );
-
-	m_bHasPaintMap = engine->HasPaintMap();
-
 }
 
 static const char *g_DefaultLightstyles[] =

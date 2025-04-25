@@ -2,7 +2,7 @@
 #define PROJECTED_WALL_ENTITY_H
 
 #include "baseprojectedentity.h"
-#include "paint/paintable_entity.h"
+#include "paintable_entity.h"
 #include "basetempentity.h"
 
 //#define NO_PROJECTED_WALL

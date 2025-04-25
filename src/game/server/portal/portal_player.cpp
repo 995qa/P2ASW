@@ -42,8 +42,8 @@
 #include "mp_shareddefs.h"
 #include "prop_portal_shared.h"
 #include "world.h"
-#include "paint/weapon_paintgun.h"
-#include "paint/paint_swap_guns.h"
+#include "weapon_paintgun.h"
+#include "paint_swap_guns.h"
 #include "info_camera_link.h"
 #include "prop_weightedcube.h"
 #include "props.h"
@@ -2067,7 +2067,7 @@ void CPortal_Player::PreThink( void )
 	SetLocalAngles( vOldAngles );
 
 	// Cache the velocity before impact
-	if( HASPAINTMAP )
+	if( engine->HasPaintmap )
 		m_PortalLocal.m_vPreUpdateVelocity = GetAbsVelocity();
 
 	// Update the painted power

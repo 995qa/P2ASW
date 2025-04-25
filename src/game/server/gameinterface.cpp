@@ -129,7 +129,7 @@
 
 #ifdef PORTAL2
 #include "info_placement_helper.h"
-#include "paint/paint_saverestore.h"
+#include "paint_saverestore.h"
 #include "prop_portal_shared.h"
 #include "portal_shareddefs.h"
 #endif // PORTAL2
@@ -2563,7 +2563,7 @@ void PrecacheParticleFileAndSystems( const char *pParticleSystemFile )
 
 void PrecacheGameSoundsFile( const char *pSoundFile )
 {
-	soundemitterbase->AddSoundsFromFile( pSoundFile, true );
+	soundemitterbase->AddSoundsFromFile( pSoundFile, true, false );
 	SoundSystemPreloadSounds();
 }
 

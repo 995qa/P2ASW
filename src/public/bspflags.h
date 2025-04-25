@@ -59,22 +59,12 @@
 #define	CONTENTS_PLAYERCLIP		0x10000
 #define	CONTENTS_MONSTERCLIP	0x20000
 
-#ifdef P2ASW // Older flags, replaced in portal 2
-// currents can be added to any other contents, and may be mixed
-#define	CONTENTS_CURRENT_0		0x40000
-#define	CONTENTS_CURRENT_90		0x80000
-#define	CONTENTS_CURRENT_180	0x100000
-#define	CONTENTS_CURRENT_270	0x200000
-#define	CONTENTS_CURRENT_UP		0x400000
-#define	CONTENTS_CURRENT_DOWN	0x800000
-#else
 #define	CONTENTS_BRUSH_PAINT	0x40000
 #define	CONTENTS_UNUSED1	    0x80000 // was GRENADECLIP in csgo, the naming of UNUSED2-4 implies this was originally UNUSED1
 #define	CONTENTS_UNUSED2		0x100000
 #define	CONTENTS_UNUSED3		0x200000
 #define	CONTENTS_UNUSED4		0x400000
 #define	CONTENTS_UNUSED5		0x800000
-#endif
 
 #define	CONTENTS_ORIGIN			0x1000000	// removed before bsping an entity
 
@@ -154,9 +144,6 @@
 #define MASK_NPCWORLDSTATIC_FLUID	(CONTENTS_SOLID|CONTENTS_WINDOW|CONTENTS_MONSTERCLIP)
 // These are things that can split areaportals
 #define MASK_SPLITAREAPORTAL		(CONTENTS_WATER|CONTENTS_SLIME)
-
-// UNDONE: This is untested, any moving water
-#define MASK_CURRENT				(CONTENTS_CURRENT_0|CONTENTS_CURRENT_90|CONTENTS_CURRENT_180|CONTENTS_CURRENT_270|CONTENTS_CURRENT_UP|CONTENTS_CURRENT_DOWN)
 
 // everything that blocks corpse movement
 // UNDONE: Not used yet / may be deleted

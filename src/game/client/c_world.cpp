@@ -14,7 +14,7 @@
 #include "precache_register.h"
 
 #ifdef PORTAL2
-#include "paint/paint_stream_manager.h"
+#include "paint_stream_manager.h"
 #endif
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -66,8 +66,6 @@ BEGIN_RECV_TABLE( C_World, DT_World )
 #ifdef PORTAL2
 	RecvPropInt(RECVINFO(m_nMaxBlobCount)),
 #endif
-	
-	RecvPropBool	(RECVINFO(m_bHasPaintMap) ),
 
 END_RECV_TABLE()
 

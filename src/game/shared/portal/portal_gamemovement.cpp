@@ -33,7 +33,7 @@
 	#include "SoundEmitterSystem/isoundemittersystembase.h"
 	#include "weapon_portalgun.h"
 	#include "projectedwallentity.h"
-	#include "paint/paint_power_info.h"
+	#include "paint_power_info.h"
 	#include "particle_parse.h"
 #endif
 
