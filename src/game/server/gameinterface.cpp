@@ -7,10 +7,12 @@
 //===========================================================================//
 
 #include "cbase.h"
+#if 0 // Might use this later if we need other engine hooks, disabling for now though - Kelsey
 #include "../packages/minhook.1.3.3/lib/native/include/MinHook.h"
 #include "../silver-bun/memaddr.h"
 #include "../silver-bun/module.h"
 #include "../silver-bun/utils.h"
+#endif
 #include "gamestringpool.h"
 #include "mapentities_shared.h"
 #include "game.h"
@@ -645,124 +647,12 @@ EXPOSE_SINGLE_INTERFACE_GLOBALVAR(CServerGameDLL, IServerGameDLL, INTERFACEVERSI
 
 #ifdef P2ASW
 
+#if 0 // P2P2 TODO: not sure if bonesetup hook will still be necessary
+
 // 
 // BEGIN ENGINE HOOKS
 //
 
-struct struct_this
-{
-	char gap5[0x1dc];
-	CUtlVector<CPackedStore*, CUtlMemory<CPackedStore*, int> > m_VPKFiles;
-};
-bool bHasBeenCalled = false;
-void __fastcall CBaseFileSystem__AddVPKFile(struct_this* thisptr, void* edx, char const* pBasename, SearchPathAdd_t addType)
-{
-	if (!bHasBeenCalled) {
-		bHasBeenCalled = true;
-		CUtlVector<CUtlString> m_VPKPaths;
-
-		for (int i = 0; i < thisptr->m_VPKFiles.Count(); ++i) {
-			m_VPKPaths.AddToTail(thisptr->m_VPKFiles.Element(i)->FullPathName());
-		}
-		thisptr->m_VPKFiles.RemoveAll();
-		for (int i = 0; i < m_VPKPaths.Count(); ++i) {
-			CBaseFileSystem__AddVPKFile(thisptr, 0, m_VPKPaths.Element(i), PATH_ADD_TO_TAIL);
-		}
-	}
-
-	bHasBeenCalled = true;
-	// Ensure that the passed in file name has a .vpk extension. If not present, append it.
-	const char* pExtension = strrchr(pBasename, '.');
-	char modifiedBasename[260]; // Assuming max path length
-
-	if (!pExtension || V_strcmp(pExtension, ".vpk") != 0)
-	{
-		// If .vpk is not present, append it
-		Q_snprintf(modifiedBasename, sizeof(modifiedBasename), "%s.vpk", pBasename);
-		pBasename = modifiedBasename;
-	}
-
-
-	char nameBuf[MAX_PATH];
-	Q_MakeAbsolutePath(nameBuf, sizeof(nameBuf), pBasename);
-#ifdef _WIN32
-	Q_strlower(nameBuf);
-#endif
-	Q_FixSlashes(nameBuf);
-	// see if we already have this vpk file
-	for (int i = 0; i < thisptr->m_VPKFiles.Count(); i++)
-	{
-		if (!V_strcmp(thisptr->m_VPKFiles[i]->FullPathName(), nameBuf))
-		{
-			return;											// already have this one
-		}
-	}
-	//char pszFName[MAX_PATH];
-	CPackedStore* pNew = new CPackedStore(nameBuf, (IBaseFileSystem*)thisptr, false);
-	//pNew->RegisterFileTracker((IThreadedFileMD5Processor*)&m_FileTracker2);
-	if (pNew->IsEmpty())
-	{
-		delete pNew;
-	}
-	else
-	{
-		if (PATH_ADD_TO_TAIL == addType)
-		{
-			thisptr->m_VPKFiles.AddToTail(pNew);
-		}
-		else
-		{
-			thisptr->m_VPKFiles.AddToHead(pNew);
-		}
-		char szRelativePathName[512];
-		Assert(V_IsAbsolutePath(pNew->FullPathName()));
-		char szBasePath[MAX_PATH];
-		V_strncpy(szBasePath, pNew->FullPathName(), sizeof(szBasePath));
-		V_StripFilename(szBasePath);
-		V_StripLastDir(szBasePath, sizeof(szBasePath));
-		V_MakeRelativePath(pNew->FullPathName(), szBasePath, szRelativePathName, sizeof(szRelativePathName));
-		//pNew->m_PackFileID = m_FileTracker2.NotePackFileOpened(pszFName, szRelativePathName, "GAME", 0);
-	}
-}
-CModule g_mFileSystemDLL;
-
-void InitializeFileSystemModule() {
-	HMODULE hModule;
-
-	// Check if "filesystem_stdio.dll" is loaded
-	hModule = GetModuleHandle("filesystem_stdio.dll");
-	if (hModule != nullptr) {
-		g_mFileSystemDLL = CModule("filesystem_stdio.dll");
-		return;
-	}
-
-	// Check if "dedicated.dll" is loaded
-	hModule = GetModuleHandle("dedicated.dll");
-	if (hModule != nullptr) {
-		g_mFileSystemDLL = CModule("dedicated.dll");
-		return;
-	}
-
-	// Check if "launcher.dll" is loaded
-	hModule = GetModuleHandle("launcher.dll");
-	if (hModule != nullptr) {
-		g_mFileSystemDLL = CModule("launcher.dll");
-		return;
-	}
-
-	// If none of the modules are loaded, g_mFileSystemDLL remains as it is
-}
-template<typename T, typename R, typename... Args>
-void* void_cast(R(T::* f)(Args...))
-{
-	union
-	{
-		R(T::* pf)(Args...);
-		void* p;
-	};
-	pf = f;
-	return p;
-}
 void Studio_BuildMatricesHook(
 	const CStudioHdr *pStudioHdr,
 	const QAngle& angles,
@@ -895,6 +785,8 @@ void UpdateSavesDisabledCallback( IConVar *pConVar, const char *pOldString, floa
 
 ConVar map_wants_save_disable("map_wants_save_disable", "0", FCVAR_CHEAT, "Same as save_disable, but is cleared on disconnect", UpdateSavesDisabledCallback);
 
+#endif // 0
+
 // Copied from GamepadUI open source release - seems like this was in tier1 originally
 const bool IsSteamDeck()
 {
@@ -918,26 +810,10 @@ bool CServerGameDLL::DLLInit(CreateInterfaceFn appSystemFactory,
 	CreateInterfaceFn physicsFactory, CreateInterfaceFn fileSystemFactory,
 	CGlobalVars *pGlobals)
 {
-#ifdef P2ASW
+#if defined( P2ASW ) && 0 // P2P2 TODO: not sure if bonesetup hook will still be necessary
 	// Setup engine hooks
 
-	int sizeOfPackedStore = sizeof(CPackedStore);
-
-	std::vector<uint8> sizeBytes = {
-		static_cast<uint8>(sizeOfPackedStore & 0xFF),
-		static_cast<uint8>((sizeOfPackedStore >> 8) & 0xFF),
-		static_cast<uint8>((sizeOfPackedStore >> 16) & 0xFF),
-		static_cast<uint8>((sizeOfPackedStore >> 24) & 0xFF)
-	};
-	CModule ThisDLL("server.dll");
-	InitializeFileSystemModule();
-	g_mFileSystemDLL.FindPatternSIMD("68 ? ? ? ? E8 ? ? ? ? 83 C4 ? 85 C0 74 ? 6A ? 8D 56 04").OffsetSelf(1).Patch(sizeBytes);
 	MH_Initialize();
-	MH_CreateHook(g_mFileSystemDLL.FindPatternSIMD("81 EC ? ? ? ? 53 8B 9C 24 10 01 00 00").RCast<LPVOID>(), (LPVOID)(&CBaseFileSystem__AddVPKFile), NULL);
-	MH_CreateHook(g_mFileSystemDLL.FindPatternSIMD("81 EC ? ? ? ? 56 57 8D 84 24 0C 01 00 00").RCast<LPVOID>(), void_cast(&CPackedStore::OpenFile), NULL);
-	MH_CreateHook(g_mFileSystemDLL.FindPatternSIMD("83 EC ? 53 8B 5C 24 1C").RCast<LPVOID>(), void_cast(&CPackedStore::ReadData), NULL);
-	MH_CreateHook(g_mFileSystemDLL.FindPatternSIMD("55 8B EC 83 E4 ? 81 EC ? ? ? ? 53 55").RCast<LPVOID>(), void_cast(&CPackedStore::BuildFindFirstCache), NULL);
-	MH_CreateHook(g_mFileSystemDLL.FindPatternSIMD("53 55 56 57 8B F9 8B 87 1C 02 00 00").RCast<LPVOID>(), void_cast(&CPackedStore::DPackedStore), NULL);
 	MH_CreateHook(&Studio_BuildMatrices, (void*)(&Studio_BuildMatricesHook), NULL);
 	MH_EnableHook(MH_ALL_HOOKS);
 #endif // P2ASW
@@ -1011,7 +887,7 @@ bool CServerGameDLL::DLLInit(CreateInterfaceFn appSystemFactory,
 		scriptmanager = (IScriptManager *)appSystemFactory(VSCRIPT_INTERFACE_VERSION, NULL);
 	}
 
-#ifdef P2ASW
+#if defined( P2ASW ) && 0 // P2P2 TODO: not sure if we'll need this later and don't think we should disable P2ASW define yet
 	// HACK: Now that we have the filesystem interface, add a new VPK as soon as possible
 	// so that the patched AddVPKFile runs and flushes the VPK list.
 	// If we don't do this, we get crashes later
@@ -1042,22 +918,6 @@ bool CServerGameDLL::DLLInit(CreateInterfaceFn appSystemFactory,
 	KeyValuesSystem()->SetKeyValuesExpressionSymbol( "ANAMORPHIC", false );
 	// Used to swap cross and circle on Japanese PS3s, not supported on PC or in Swarm
 	KeyValuesSystem()->SetKeyValuesExpressionSymbol( "INPUTSWAPAB", false );
-
-	// Extra language conditional added in Portal 2 (Turkish), others are handled already
-	// We hook a callback to the language cvar so this always reflects its current value
-	ConVar* cl_language = g_pCVar->FindVar("cl_language");
-	if (cl_language)
-	{
-		cl_language->InstallChangeCallback( LanguageCvarChangeCallback );
-	}
-
-	// Change fps_max default value to match literally every other game
-	ConVar* fps_max = g_pCVar->FindVar("fps_max");
-	if ( fps_max )
-	{
-		fps_max->SetDefault("300");
-		fps_max->Revert();
-	}
 #endif // P2ASW
 
 #ifdef SERVER_USES_VGUI
@@ -1184,15 +1044,6 @@ bool CServerGameDLL::DLLInit(CreateInterfaceFn appSystemFactory,
 
 		ConMsg("Development-only and hidden cvars have been enabled.\n");
 	}
-
-#ifdef P2ASW
-	// Hook callback to save_disable for map_wants_save_disable
-	ConVar* save_disable = g_pCVar->FindVar("save_disable");
-	if (save_disable)
-	{
-		save_disable->InstallChangeCallback( UpdateSavesDisabledCallback );
-	}
-#endif
 
 	bool bInitSuccess = false;
 	if ( sv_threaded_init.GetBool() )
@@ -1566,9 +1417,11 @@ bool CServerGameDLL::LevelInit( const char *pMapName, char const *pMapEntities, 
 	// ask for the latest game rules
 	GameRules()->UpdateGameplayStatsFromSteam();
 
+#if 0 // P2P2 TODO: Is this in the engine normally?
 	// in the CSGO code this only happens when transitioning, unsure why
 	// it seems to be done on new game and save/load in other places anyway
 	map_wants_save_disable.SetValue( 0 );
+#endif
 
 	return true;
 }
