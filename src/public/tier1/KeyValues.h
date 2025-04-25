@@ -127,6 +127,9 @@ public:
 	void UsesEscapeSequences(bool state); // default false
 	bool LoadFromFile( IBaseFileSystem *filesystem, const char *resourceName, const char *pathID = NULL, GetSymbolProc_t pfnEvaluateSymbolProc = NULL);
 	bool SaveToFile( IBaseFileSystem *filesystem, const char *resourceName, const char *pathID = NULL);
+	
+	// p2port: Only in Emulsion
+	bool LoadFromFileEX( IBaseFileSystem* filesystem, const char* resourceName, const char* pathID = NULL, GetSymbolProc_t pfnEvaluateSymbolProc = NULL );
 
 	// Read from a buffer...  Note that the buffer must be null terminated
 	bool LoadFromBuffer( char const *resourceName, const char *pBuffer, IBaseFileSystem* pFileSystem = NULL, const char *pPathID = NULL, GetSymbolProc_t pfnEvaluateSymbolProc = NULL );
@@ -183,7 +186,7 @@ public:
 	const wchar_t *GetWString( const char *keyName = NULL, const wchar_t *defaultValue = L"" );
 	void *GetPtr( const char *keyName = NULL, void *defaultValue = (void*)0 );
 	Color GetColor( const char *keyName = NULL , const Color &defaultColor = Color( 0, 0, 0, 0 ) );
-	bool GetBool( const char *keyName = NULL, bool defaultValue = false ) { return GetInt( keyName, defaultValue ? 1 : 0 ) ? true : false; }
+	bool GetBool( const char *keyName = NULL, bool defaultValue = false ); // p2port: Removed only in Emulsion  { return GetInt( keyName, defaultValue ? 1 : 0 ) ? true : false; }
 	bool  IsEmpty(const char *keyName = NULL);
 
 	// Data access
@@ -320,6 +323,7 @@ private:
 
 	bool ReadAsBinaryPooledFormat( CUtlBuffer &buf, IBaseFileSystem *pFileSystem, unsigned int poolKey, GetSymbolProc_t pfnEvaluateSymbolProc );
 
+	// p2port: Removed in Emulsion, but isn't removed anywhere else. This isn't a virtual function, so it should be fine to keep.
 	bool EvaluateConditional( const char *pExpressionString, GetSymbolProc_t pfnEvaluateSymbolProc );
 
 	uint32 m_iKeyName : 24;	// keyname is a symbol defined in KeyValuesSystem

@@ -34,6 +34,7 @@ class CLZMA
 {
 public:
 	unsigned int	Uncompress( unsigned char *pInput, unsigned char *pOutput, LZMAReadProgressCallbackFunc_t pCallback = NULL );
+	unsigned int	UncompressVCS( unsigned char *pInput, unsigned char *pOutput, LZMAReadProgressCallbackFunc_t pCallback = NULL ); // p2port: Only in Emulsion
 	bool			IsCompressed( unsigned char *pInput );
 	unsigned int	GetActualSize( unsigned char *pInput );
 

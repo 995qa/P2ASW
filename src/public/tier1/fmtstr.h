@@ -83,7 +83,34 @@ public:
 
 	void AppendFormat( const char *pchFormat, ... ) { int nLength = Length(); char *pchEnd = m_szBuf + nLength; FmtStrVSNPrintf( pchEnd, SIZE_BUF - nLength, &pchFormat ); }
 	void AppendFormatV( const char *pchFormat, va_list args );
-	void Append( const char *pchValue ) { AppendFormat( pchValue ); }
+	void Append( const char *pchValue )
+	{
+#if 0
+		AppendFormat( pchValue );
+#else // p2port: Is this just an Emulsion optimization?
+		
+		// This function is close to the metal to cut down on the CPU cost
+		// of the previous incantation of Append which was implemented as
+		// AppendFormat( pchValue ). This implementation, though not
+		// as easy to read, instead does a strcpy from the existing end
+		// point of the CFmtStrN. This brings something like a 10-20x speedup
+		// in my rudimentary tests. It isn't using V_strncpy because that
+		// function doesn't return the number of characters copied, which
+		// we need to adjust nLength. Doing the V_strncpy with a V_strlen
+		// afterwards took twice as long as this implementations in tests,
+		// so V_strncpy's implementation was used to write this method.
+		int nLength = Length();
+		char* pDest = m_szBuf + nLength;
+		const int maxLen = SIZE_BUF - nLength;
+		char* pLast = pDest + maxLen - 1;
+		while ((pDest < pLast) && (*pchValue != 0))
+		{
+			*pDest = *pchValue;
+			++pDest; ++pchValue;
+		}
+		*pDest = 0;
+#endif
+	}
 
 	void AppendIndent( uint32 unCount, char chIndent = '\t' );
 private:
