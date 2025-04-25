@@ -584,8 +584,9 @@ public:
 	// Returns true if this is the error material you get back from IMaterialSystem::FindMaterial if
 	// the material can't be found.
 	virtual bool			IsErrorMaterial() const = 0;
-
-	virtual void			SetUseFixedFunctionBakedLighting( bool bEnable ) = 0;
+	
+	// Don't want to mess with the vtable layout
+	virtual void			Unused( ) {}
 
 	// Gets the current alpha modulation
 	virtual float			GetAlphaModulation() = 0;
@@ -604,12 +605,14 @@ public:
 	virtual void			DeleteIfUnreferenced() = 0;
 
 	virtual bool			IsSpriteCard() = 0;
-
-	virtual void			CallBindProxy( void *proxyData ) = 0;
+	
+	virtual void			CallBindProxy( void *proxyData, ICallQueue *pCallQueue ) = 0;
 
 	virtual void			RefreshPreservingMaterialVars() = 0;
 
 	virtual bool			WasReloadedFromWhitelist() = 0;
+	
+	virtual int				GetReferenceCount() const = 0;
 };
 
 
