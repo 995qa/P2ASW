@@ -49,6 +49,9 @@ public:
 	// This will be called when the regenerator needs to be deleted
 	// which will happen when the texture is destroyed
 	virtual void Release() = 0;
+
+	virtual bool HasPreallocatedScratchTexture() const { return false; }
+	virtual IVTFTexture *GetPreallocatedScratchTexture() { return NULL; }
 };
 
 abstract_class ITexture
@@ -88,7 +91,7 @@ public:
 
 	// If rect is not specified, reconstruct all bits, otherwise just
 	// reconstruct a subrect.
-	virtual void Download( Rect_t *pRect = 0 ) = 0;
+	virtual void Download( Rect_t *pRect = 0, int nAdditionalCreationFlags = 0 ) = 0;
 
 	// Uses for stats. . .get the approximate size of the texture in it's current format.
 	virtual int GetApproximateVidMemBytes( void ) const = 0;
@@ -110,6 +113,7 @@ public:
 	virtual bool IsCubeMap() const = 0;
 	virtual bool IsNormalMap() const = 0;
 	virtual bool IsProcedural() const = 0;
+	virtual bool IsDefaultPool() const = 0;
 
 	virtual void DeleteIfUnreferenced() = 0;
 
@@ -129,6 +133,10 @@ public:
 
 	// Force exclude override (automatically downloads the texture)
 	virtual void ForceExcludeOverride( int iExcludeOverride ) = 0;
+	
+	//swap out the active texture surface, only valid for MultiRenderTarget textures
+	virtual void AddDownsizedSubTarget( const char *szName, int iDownsizePow2, MaterialRenderTargetDepth_t depth ) = 0;
+	virtual void SetActiveSubTarget( const char *szName ) = 0; //NULL to return to base target
 };
 
 
