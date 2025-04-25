@@ -353,8 +353,9 @@ public:
 	// Cleans up the cluster list
 	virtual void CleanUpEntityClusterList( PVSInfo_t *pPVSInfo ) = 0;
 
-	virtual void SetAchievementMgr( IAchievementMgr *pAchievementMgr ) =0;
-	virtual IAchievementMgr *GetAchievementMgr() = 0;
+	// p2port: Nope
+	//virtual void SetAchievementMgr( IAchievementMgr *pAchievementMgr ) =0;
+	//virtual IAchievementMgr *GetAchievementMgr() = 0;
 
 	virtual int	GetAppID() = 0;
 	
@@ -427,12 +428,17 @@ public:
 
 	// Update the 360 pacifier/spinner
 	virtual void RefreshScreenIfNecessary() = 0;
-
+	
 	// Tells the engine to allocate paint surfaces
-	virtual bool HasPaintMap() = 0;
-	virtual void PaintSurface( const model_t *model, const Vector& position, const Color& color, float radius ) = 0;
-	virtual void TracePaintSurface( const model_t *model, const Vector& position, float radius, CUtlVector<Color>& surfColor ) = 0;
+	virtual bool HasPaintmap() = 0;
+
+	// Returns true if the surface paint colors changed
+	virtual bool SpherePaintSurface( const model_t *pModel, const Vector& vPosition, BYTE color, float flSphereRadius, float flPaintCoatPercent ) = 0;
+
+	virtual void SphereTracePaintSurface( const model_t *pModel, const Vector& vPosition, const Vector& vContactNormal, float flSphereRadius, CUtlVector<BYTE>& surfColor ) = 0;
 	virtual void RemoveAllPaint() = 0;
+	virtual void PaintAllSurfaces( BYTE color ) = 0;
+	virtual void RemovePaint( const model_t* pModel ) = 0;
 
 	// Send a client command keyvalues
 	// keyvalues are deleted inside the function
@@ -441,6 +447,12 @@ public:
 	// Returns the XUID of the specified player. It'll be NULL if the player hasn't connected yet.
 	virtual uint64 GetClientXUID( edict_t *pPlayerEdict ) = 0;
 	virtual bool IsActiveApp() = 0;
+	
+	virtual void SetNoClipEnabled( bool bEnabled ) = 0;
+
+	virtual void GetPaintmapDataRLE( CUtlVector<uint32> &data ) = 0;
+	virtual void LoadPaintmapDataRLE( const CUtlVector< uint32 > &data ) = 0;
+	virtual void SendPaintmapDataToClient( edict_t *pPlayerEdict ) = 0;
 };
 
 #define INTERFACEVERSION_SERVERGAMEDLL				"ServerGameDLL005"
@@ -563,15 +575,7 @@ public:
 
 	virtual void			ServerHibernationUpdate( bool bHibernating ) = 0;
 
-	virtual void			GetMatchmakingGameData( char *buf, size_t bufSize ) = 0;
-
 	virtual bool			ShouldPreferSteamAuth() = 0;
-
-	// does this game support randomly generated maps?
-	virtual bool			SupportsRandomMaps() = 0;
-
-	// return true to disconnect client due to timeout (used to do stricter timeouts when the game is sure the client isn't loading a map)
-	virtual bool			ShouldTimeoutClient( int nUserID, float flTimeSinceLastReceived ) = 0;
 };
 
 //-----------------------------------------------------------------------------
