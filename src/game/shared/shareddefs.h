@@ -710,7 +710,7 @@ struct ModelScale
 };
 
 #include "soundflags.h"
-
+#include "SoundEmitterSystem/isoundemittersystembase.h"
 struct CSoundParameters;
 //-----------------------------------------------------------------------------
 // Purpose: Aggregates and sets default parameters for EmitSound function calls
@@ -732,7 +732,7 @@ struct EmitSound_t
 		m_bWarnOnDirectWaveReference( false ),
 		m_nSpeakerEntity( -1 ),
 		m_UtlVecSoundOrigin(),
-		m_hSoundScriptHandle( -1 )
+		m_hSoundScriptHash( SOUNDEMITTER_INVALID_HASH )
 	{
 	}
 
@@ -752,7 +752,7 @@ struct EmitSound_t
 	bool						m_bWarnOnDirectWaveReference;
 	int							m_nSpeakerEntity;
 	mutable CUtlVector< Vector >	m_UtlVecSoundOrigin;  ///< Actual sound origin(s) (can be multiple if sound routed through speaker entity(ies) )
-	mutable HSOUNDSCRIPTHANDLE		m_hSoundScriptHandle;
+	mutable HSOUNDSCRIPTHASH	m_hSoundScriptHash;
 };
 
 #define MAX_ACTORS_IN_SCENE 16
