@@ -131,18 +131,12 @@ public:
 	virtual bool IsTopmostPopup( VPANEL vguiPanel) = 0;
 	virtual void SetTopmostPopup( VPANEL vguiPanel, bool state ) = 0;
 
-	virtual void SetMessageContextId( VPANEL vguiPanel, int nContextId ) = 0;
-	virtual int GetMessageContextId( VPANEL vguiPanel ) = 0;
-
-	virtual const DmxElementUnpackStructure_t *GetUnpackStructure( VPANEL vguiPanel ) const = 0;
-	virtual void OnUnserialized( VPANEL vguiPanel, CDmxElement *pElement ) = 0;
-
 	// In Emulsion, the functions actually have something
-	virtual void SetMessageContextId( VPANEL vguiPanel, int nContextId ) {};
+	virtual void SetMessageContextId( VPANEL vguiPanel, int nContextId ) {}
 	virtual int GetMessageContextId( VPANEL vguiPanel ) { return 0; }
 
 	virtual const DmxElementUnpackStructure_t *GetUnpackStructure( VPANEL vguiPanel ) const { return NULL; };
-	virtual void OnUnserialized( VPANEL vguiPanel, CDmxElement *pElement ) {};
+	virtual void OnUnserialized( VPANEL vguiPanel, CDmxElement *pElement ) {}
 
 // sibling pins
 	virtual void SetSiblingPin(VPANEL vguiPanel, VPANEL newSibling, byte iMyCornerToPin = 0, byte iSiblingCornerToPinTo = 0 ) = 0;
