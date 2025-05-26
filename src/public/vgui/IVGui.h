@@ -101,10 +101,17 @@ public:
 
 	// data accessor for above
 	virtual bool GetShouldVGuiControlSleep() = 0;
+	
+	// p2port: only in Emulsion
+	//{
+	virtual void SetVRMode(bool p1) { }
+	virtual byte GetVRMode() { return 0; } // hopefully 0 == none in this case, idk for sure tho -Klax
 
 	// Resets a particular context, use DEFAULT_VGUI_CONTEXT
 	// to get the one normally used by VGUI
-	virtual void ResetContext( HContext context ) = 0;
+	//virtual void ResetContext( HContext context ) = 0;
+	void ResetContext(HContext context) {} // do nothing, vtable chnaged. leaving here so i dont break extra stuff -Klax
+	//}
 };
 
 };
