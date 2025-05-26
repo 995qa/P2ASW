@@ -452,7 +452,7 @@ bool CPortal_Player::TestHitboxes( const Ray_t &ray, unsigned int fContentsMask,
 			return false;
 
 		mstudiobbox_t *pbox = set->pHitbox( tr.hitbox );
-		mstudiobone_t *pBone = pStudioHdr->pBone(pbox->bone);
+		const mstudiobone_t *pBone = pStudioHdr->pBone(pbox->bone);
 		tr.surface.name = "**studio**";
 		tr.surface.flags = SURF_HITBOX;
 		tr.surface.surfaceProps = pBone->GetSurfaceProp();

@@ -235,7 +235,7 @@ protected:
 	// More concise version of the above BuildRenderableRenderLists().  Called for shadow depth map rendering
 	void			BuildShadowDepthRenderableRenderLists();
 
-	void			DrawWorld( float waterZAdjust );
+	void			DrawWorld( IMatRenderContext *pRenderContext, float waterZAdjust );
 
 	// Draws all opaque/translucent renderables in leaves that were rendered
 	void			DrawOpaqueRenderables( bool bShadowDepth );
@@ -252,10 +252,10 @@ protected:
 	void			DrawNoZBufferTranslucentRenderables( void );
 
 	// Renders all translucent world surfaces in a particular set of leaves
-	void			DrawTranslucentWorldInLeaves( bool bShadowDepth );
+	void			DrawTranslucentWorldInLeaves( IMatRenderContext *pRenderContext, bool bShadowDepth );
 
 	// Renders all translucent world + detail objects in a particular set of leaves
-	void			DrawTranslucentWorldAndDetailPropsInLeaves( int iCurLeaf, int iFinalLeaf, int nEngineDrawFlags, int &nDetailLeafCount, LeafIndex_t* pDetailLeafList, bool bShadowDepth );
+	void			DrawTranslucentWorldAndDetailPropsInLeaves( IMatRenderContext *pRenderContext, int iCurLeaf, int iFinalLeaf, int nEngineDrawFlags, int &nDetailLeafCount, LeafIndex_t* pDetailLeafList, bool bShadowDepth );
 
 	// Purpose: Computes the actual world list info based on the render flags
 	void			PruneWorldListInfo();

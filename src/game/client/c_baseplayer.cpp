@@ -430,6 +430,7 @@ C_BasePlayer::C_BasePlayer() : m_iv_vecViewOffset( "C_BasePlayer::m_iv_vecViewOf
 	m_nSplitScreenSlot = -1;
 	m_bIsLocalPlayer = false;
 	m_afButtonForced = 0;
+	m_bDisableSimulationFix = true;
 
 }
 

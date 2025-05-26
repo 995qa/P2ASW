@@ -643,7 +643,7 @@ void CModelRenderSystem::SetupBones( int nModelTypeCount, ModelListByType_t *pMo
 			// convert bone to world transformations into pose to world transformations
 			for (int k = 0; k < nBoneCount; k++)
 			{
-				mstudiobone_t *pCurBone = list.m_pStudioHdr->pBone( k );
+				const mstudiobone_t *pCurBone = list.m_pStudioHdr->pBone( k );
 				MatrixCopy( pCurBone->poseToBone, pPoseToBone[k] );
 			}
 		}

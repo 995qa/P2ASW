@@ -1048,6 +1048,7 @@ C_BaseEntity::C_BaseEntity() :
 	m_bSimulatedEveryTick = false;
 	m_bAnimatedEveryTick = false;
 	m_pPhysicsObject = NULL;
+	m_bDisableSimulationFix = false;
 
 #ifdef _DEBUG
 	m_vecAbsOrigin = vec3_origin;
@@ -3024,6 +3025,80 @@ void C_BaseEntity::PostDataUpdate( DataUpdateType_t updateType )
 	{
 		UpdateVisibility();
 	}
+}
+
+static ConVar cl_simulationtimefix( "cl_simulationtimefix", "1", FCVAR_DEVELOPMENTONLY );
+void C_BaseEntity::OnSimulationTimeChanging( float flPreviousSimulationTime, float flNextSimulationTime )
+{
+	if ( m_bDisableSimulationFix )
+		return;
+
+	if ( !cl_simulationtimefix.GetBool() )
+	{
+		return;
+	}
+
+	if ( GetPredictable() || IsClientCreated() )
+	{
+		return;
+	}
+
+	if ( !ShouldDraw() )
+	{
+		return;
+	}
+
+	// If the m_flSimulationTime is changing faster than or in lockstep with the interpolation amount, then never do a fixup
+	float flOriginInterpolationAmount = m_iv_vecOrigin.GetInterpolationAmount();
+	float dtSimulationTimestamps = ROUND_TO_TICKS( flNextSimulationTime - flPreviousSimulationTime );
+	if ( dtSimulationTimestamps <= flOriginInterpolationAmount )
+		return;
+
+	// In the worst case (w/o packet loss) the engine could hit a slow frame and have to run off 0.1 (MAX_FRAMETIME) seconds worth of ticks.
+	// Thus, something moving would get new m_flSimulationTime sample up to ROUND_TO_TICKS( 0.1f ) seconds from the previous time which
+	//  is longer than the interpolation interval but still considered "smooth" and continuous motion.  We don't want to mess that case up, so what we
+	//  do is to see how far in the past the previous packet time stamp was and if the simulation time delta is even greater than that only then do we 
+	//  add some fixup samples.
+
+	// Since we haven't called PostDataUpdate, m_flLastMessageTime is the timestamp of the last packet containing this entity and engine->GetLastTimeStamp() is the timestamp of the currently being 
+	//  processed packet
+	// TBD:  Avoid the call into the engine-> virtual interface!!!
+	float dtFromLastPacket = ROUND_TO_TICKS( engine->GetLastTimeStamp() - m_flLastMessageTime );
+
+	// If the m_flSimulationTime time will have changed more quickly than the timestamps of the last two packets received, also skip fixup
+	if ( dtSimulationTimestamps <= dtFromLastPacket )
+		return;
+
+	// Worst case backfill is 100 msecs (default multiplayer interpolation amount)
+	float flSampleBackFillMaxTime = ROUND_TO_TICKS( 0.1f );
+
+	m_iv_vecOrigin.RestoreToLastNetworked();
+	m_iv_angRotation.RestoreToLastNetworked();
+
+	float flTimeBeforeWhichToLeaveOldSamples = flPreviousSimulationTime + TICK_INTERVAL * 0.5f;
+
+	for ( float simtime = flNextSimulationTime - flSampleBackFillMaxTime;  
+		  simtime < flNextSimulationTime; 
+		  simtime += TICK_INTERVAL )
+	{
+		// Don't stomp preexisting data, though
+		if ( simtime < flTimeBeforeWhichToLeaveOldSamples )
+			continue;
+
+		m_iv_vecOrigin.NoteChanged( gpGlobals->curtime, simtime, false );
+		m_iv_angRotation.NoteChanged( gpGlobals->curtime, simtime, false );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Latch simulation values when the entity has not changed
+//-----------------------------------------------------------------------------
+void C_BaseEntity::OnDataUnchangedInPVS()
+{
+	Assert( m_hNetworkMoveParent.Get() || !m_hNetworkMoveParent.IsValid() );
+	HierarchySetParent(m_hNetworkMoveParent);
+	
+	MarkMessageReceived();
 }
 
 //-----------------------------------------------------------------------------

@@ -202,7 +202,7 @@ void TE_PlayerDecal( IRecipientFilter& filter, float delay,
 		// copy from download folder to materials/temp folder
 		// this is done since material system can access only materials/*.vtf files
 
-		if ( !engine->CopyFile( custname, fulltexname) )
+		if ( !engine->CopyLocalFile( custname, fulltexname) )
 			return;
 	}
 

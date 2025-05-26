@@ -593,6 +593,7 @@ public:
 	// save out interpolated values
 	virtual void					PreDataUpdate( DataUpdateType_t updateType );
 	virtual void					PostDataUpdate( DataUpdateType_t updateType );
+	virtual void					OnDataUnchangedInPVS();
 
 	virtual void					ValidateModelIndex( void );
 
@@ -1956,11 +1957,21 @@ private:
 	// Shadow data
 	ClientShadowHandle_t			m_ShadowHandle;
 	CBitVec< MAX_SPLITSCREEN_PLAYERS > m_ShadowBits; // Per-splitscreen user shadow visibility bits
+protected:
+	// NOTE: This is a hack for portal2.  There is a piece of networking code in OnDataChangedInPVS() that slams m_flSimulationTime
+	// this causes interpolation bugs on remote players in p2
+	bool							m_bDisableSimulationFix;
 
 	// Fades
 	float							m_fadeMinDist;
 	float							m_fadeMaxDist;
 	float							m_flFadeScale;
+
+public:
+
+	void							OnSimulationTimeChanging( float flPreviousSimulationTime, float flNextSimulationTime );
+
+private:
 
 	ClientThinkHandle_t				m_hThink;
 
