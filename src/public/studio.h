@@ -782,7 +782,7 @@ struct mstudioanimdesc_t
 
 	int					animblock;
 	int					animindex;	 // non-zero when anim data isn't in sections
-	byte *pAnimBlock( int block, int index ) const; // returns pointer to a specific anim block (local or external)
+	byte *pAnimBlock( int block, int index, bool preloadIfMissing = true) const; // returns pointer to a specific anim block (local or external)
 	byte *pAnim( int *piFrame, float &flStall ) const; // returns pointer to data and new frame index
 	byte *pAnim( int *piFrame ) const; // returns pointer to data and new frame index
 
@@ -2395,7 +2395,7 @@ struct studiohdr_t
 	int					animblockindex;
 	inline mstudioanimblock_t *pAnimBlock( int i ) const { Assert( i > 0 && i < numanimblocks); return (mstudioanimblock_t *)(((byte *)this) + animblockindex) + i; };
 	mutable void		*animblockModel;
-	byte *				GetAnimBlock( int i ) const;
+	byte *				GetAnimBlock( int i, bool preloadIfMissing = true ) const;
 
 	int					bonetablebynameindex;
 	inline const byte	*GetBoneTableSortedByName() const { return (byte *)this + bonetablebynameindex; }
