@@ -523,6 +523,9 @@ public:
 
 	// Causes the engine to read in the user's configuration on disk
 	virtual void			ReadConfiguration( const int iController, const bool readDefault ) = 0; 
+	
+	//virtual void SetAchievementMgr( IAchievementMgr *pAchievementMgr ) = 0;
+	//virtual IAchievementMgr *GetAchievementMgr() = 0;
 
 	virtual bool			MapLoadFailed( void ) = 0;
 	virtual void			SetMapLoadFailed( bool bState ) = 0;

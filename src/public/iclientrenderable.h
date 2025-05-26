@@ -152,6 +152,8 @@ public:
 	// Returns the shadow cast type
 	virtual ShadowType_t ShadowCastType() = 0;
 
+	virtual void Unused2() {}
+
 	// Create/get/destroy model instance
 	virtual void CreateModelInstance() = 0;
 	virtual ModelInstanceHandle_t GetModelInstance() = 0;
@@ -187,6 +189,8 @@ public:
 	// is the alpha computed based on the current renderfx + any override
 	// computed in OverrideAlphaModulation
 	virtual uint8	OverrideShadowAlphaModulation( uint8 nAlpha ) = 0;
+
+	virtual IClientModelRenderable*	GetClientModelRenderable() = 0;
 };
 
 
@@ -270,6 +274,7 @@ public:
 	// Should this object be able to have shadows cast onto it?
 	virtual bool	ShouldReceiveProjectedTextures( int flags ) 
 	{
+		// p2port: True in Emulsion, but false everywhere else
 		return false;
 	}
 
@@ -296,6 +301,7 @@ public:
 	virtual int LookupAttachment( const char *pAttachmentName ) { return -1; }
 	virtual	bool GetAttachment( int number, Vector &origin, QAngle &angles ) { return false; }
 	virtual bool GetAttachment( int number, matrix3x4_t &matrix ) {	return false; }
+	virtual bool ComputeLightingOrigin( int nAttachmentIndex, Vector modelLightingCenter, const matrix3x4_t &matrix, Vector &transformedLightingCenter ) { return false; }
 
 	// Rendering clip plane, should be 4 floats, return value of NULL indicates a disabled render clip plane
 	virtual float *GetRenderClipPlane() { return NULL; }
@@ -305,6 +311,7 @@ public:
 	virtual bool	ShouldDrawForSplitScreenUser( int nSlot ) { return true; }
 	virtual uint8	OverrideAlphaModulation( uint8 nAlpha ) { return nAlpha; }
 	virtual uint8	OverrideShadowAlphaModulation( uint8 nAlpha ) { return nAlpha; }
+	virtual IClientModelRenderable*	GetClientModelRenderable()	{ return 0; }
 
 // IClientUnknown implementation.
 public:
@@ -318,7 +325,6 @@ public:
 	virtual IClientEntity*		GetIClientEntity()		{ return 0; }
 	virtual C_BaseEntity*		GetBaseEntity()			{ return 0; }
 	virtual IClientThinkable*	GetClientThinkable()	{ return 0; }
-	virtual IClientModelRenderable*	GetClientModelRenderable()	{ return 0; }
 	virtual IClientAlphaProperty*	GetClientAlphaProperty() { return 0; }
 
 public:

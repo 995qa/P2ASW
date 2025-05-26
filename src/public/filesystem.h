@@ -426,6 +426,30 @@ public:
 	virtual bool			UnzipFile( const char *pFileName, const char *pPath, const char *pDestination ) = 0;
 };
 
+abstract_class IIoStats
+{
+public:
+	virtual void OnFileSeek( int nTimeInMs ) = 0;
+	virtual void OnFileRead( int nTimeInMs, int nBytesRead ) = 0;
+	virtual void OnFileOpen( const char * pFileName ) = 0;
+
+	virtual int GetNumberOfFileSeeks() = 0;
+	virtual int GetTimeInFileSeek() = 0;
+
+	virtual int GetNumberOfFileReads() = 0;
+	virtual int GetTimeInFileReads() = 0;
+	virtual int GetFileReadTotalSize() = 0;
+
+	virtual int GetNumberOfFileOpens() = 0;
+
+	virtual void Reset() = 0;
+
+protected:
+	virtual ~IIoStats()
+	{
+		// Do nothing...
+	}
+};
 
 //-----------------------------------------------------------------------------
 // Main file system interface
@@ -537,6 +561,10 @@ public:
 		const char *pPathID,
 		FileFindHandle_t *pHandle
 		) = 0;
+
+	// Searches for a file in all paths and results absolute path names for the file, works in pack files (zip and vpk) too
+	// Lets you search for something like sound/sound.cache and get a list of every sound cache
+	virtual void			FindFileAbsoluteList( CUtlVector< CUtlString > &outAbsolutePathNames, const char *pWildCard, const char *pPathID ) = 0;
 
 	//--------------------------------------------------------
 	// File name and directory operations
@@ -664,6 +692,7 @@ public:
 		TYPE_VMT,
 		TYPE_SOUNDEMITTER,
 		TYPE_SOUNDSCAPE,
+		TYPE_SOUNDOPERATORS,
 		NUM_PRELOAD_TYPES
 	};
 
@@ -792,8 +821,11 @@ public:
 	// call this to look for CPU-hogs during loading processes. When you set this, a breakpoint
 	// will be issued whenever the indicated # of seconds go by without an i/o request.  Passing
 	// 0.0 will turn off the functionality.
-	virtual void            SetIODelayAlarm( float flThreshhold ) = 0;
+	virtual void            SetIODelayAlarm( float flThreshhold ) = 0;	
 
+	virtual bool			AddXLSPUpdateSearchPath( const void *pData, int nSize ) = 0;
+	
+	virtual IIoStats		*GetIoStats() = 0;
 };
 
 //-----------------------------------------------------------------------------
