@@ -292,7 +292,8 @@ public:
 	
 	// Called from both client and server (single player) or just one (server only in dedicated server and client only if connected to a remote server)
 	// Called by LevelInitPreEntity to override sound scripts for the mod with level specific overrides based on custom mapnames, etc.
-	virtual void			AddSoundOverrides( char const *scriptfile, bool val1, bool val2, bool val3 ) = 0;
+	// p2port: The 4th variable exists in Emulsion, but not in Portal 2's modern dll
+	virtual void			AddSoundOverrides( char const *scriptfile, bool val1, bool val2/*, bool val3*/ ) = 0;
 
 	// Called by either client or server in LevelShutdown to clear out custom overrides
 	virtual void			ClearSoundOverrides() = 0;

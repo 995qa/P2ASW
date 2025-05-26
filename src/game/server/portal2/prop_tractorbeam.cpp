@@ -158,7 +158,7 @@ void CPropTractorBeamProjector::Project( void )
 		ep.m_bEmitCloseCaption = 1;
 		ep.m_bWarnOnDirectWaveReference = 0;
 		//memset(&ep.m_UtlVecSoundOrigin, 0, sizeof(ep.m_UtlVecSoundOrigin));
-		//ep.m_nSoundEntryVersion = 1;
+		ep.m_nSoundEntryVersion = 1;
 		ep.m_nChannel = 6;
 		ep.m_pSoundName = "VFX.TbeamEmitterSpinLp";
 		ep.m_flVolume = 1.0;

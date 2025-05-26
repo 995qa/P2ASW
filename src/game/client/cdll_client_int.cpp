@@ -3142,7 +3142,28 @@ class CClientMaterialSystem : public IClientMaterialSystem
 		if ( !clienttools->IsInRecordingMode() )
 			return HTOOLHANDLE_INVALID;
 
-		C_BaseEntity *pEnt = view->GetCurrentlyDrawingEntity();
+		const C_BaseEntity *pEnt = NULL;
+		if( m_pProxyData ) //dynamic_cast not possible with void *. Just going to have to search to verify that it actually is an entity
+		{
+			CClientEntityList &entList = ClientEntityList();
+			C_BaseEntity *pIter = entList.FirstBaseEntity();
+			while( pIter )
+			{
+				if( (pIter == m_pProxyData) || (pIter->GetClientRenderable() == m_pProxyData) )
+				{
+					pEnt = pIter;
+					break;
+				}
+				
+				pIter = entList.NextBaseEntity( pIter );
+			}
+		}
+		
+		if( !pEnt && (materials->GetThreadMode() == MATERIAL_SINGLE_THREADED) )
+		{
+			pEnt = view->GetCurrentlyDrawingEntity();
+		}
+
 		if ( !pEnt || !pEnt->IsToolRecording() )
 			return HTOOLHANDLE_INVALID;
 
@@ -3152,6 +3173,12 @@ class CClientMaterialSystem : public IClientMaterialSystem
 	{
 		ToolFramework_PostToolMessage( hEntity, pMsg );
 	}
+	virtual void SetMaterialProxyData( void *pProxyData )
+	{
+		m_pProxyData = pProxyData;
+	}
+
+	void *m_pProxyData;
 };
 
 //-----------------------------------------------------------------------------

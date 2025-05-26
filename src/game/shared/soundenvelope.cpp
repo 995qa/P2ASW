@@ -244,7 +244,9 @@ public:
 		m_soundOrigin.Init();
 		m_soundEntityIndex = -1;
 		m_guid = -1;
-
+		
+		m_hSoundScriptHash = SOUNDEMITTER_INVALID_HASH;
+		m_nSoundEntryVersion = 1;
 	}
 	~CSoundPatch()
 	{
@@ -296,6 +298,8 @@ private:
 	float			m_shutdownTime;
 	string_t		m_iszSoundName;
 	string_t		m_iszSoundScriptName;
+	HSOUNDSCRIPTHASH m_hSoundScriptHash;
+	int             m_nSoundEntryVersion;
 	EHANDLE			m_hEnt;
 	int				m_entityChannel;
 	int				m_soundEntityIndex;
@@ -337,6 +341,8 @@ BEGIN_SIMPLE_DATADESC( CSoundPatch )
 	DEFINE_FIELD( m_shutdownTime, FIELD_TIME ),	
 	DEFINE_FIELD( m_iszSoundName, FIELD_STRING ),
 	DEFINE_FIELD( m_iszSoundScriptName, FIELD_STRING ),
+	DEFINE_FIELD( m_hSoundScriptHash, FIELD_INTEGER ),
+	DEFINE_FIELD( m_nSoundEntryVersion, FIELD_INTEGER ),
 	DEFINE_FIELD( m_hEnt, FIELD_EHANDLE ),	
 	DEFINE_FIELD( m_entityChannel, FIELD_INTEGER ),	
 	DEFINE_FIELD( m_flags, FIELD_INTEGER ),	
@@ -600,6 +606,8 @@ bool CSoundPatch::Update( float time, float deltaTime )
 		ep.m_SoundLevel = m_soundlevel;
 		ep.m_nFlags = m_flags;
 		ep.m_nPitch = (int)m_pitch.Value();
+		ep.m_hSoundScriptHash = m_hSoundScriptHash;
+		ep.m_nSoundEntryVersion = m_nSoundEntryVersion;
 
 		// only pass the position if it's coming from the world
 		if( EntIndex() == 0 )
@@ -635,6 +643,9 @@ void CSoundPatch::StartSound( float flStartTime )
 		ep.m_pSoundName = STRING(m_iszSoundName);
 		ep.m_flVolume = GetVolumeForEngine();
 		ep.m_SoundLevel = m_soundlevel;
+
+		ep.m_hSoundScriptHash = m_hSoundScriptHash;
+		ep.m_nSoundEntryVersion = m_nSoundEntryVersion;
 
 		// only pass the position if it's coming from the world
 		if( EntIndex() == 0 )
@@ -695,6 +706,9 @@ void CSoundPatch::ResumeSound( void )
 			ep.m_nFlags = (SND_CHANGE_VOL | SND_CHANGE_PITCH | m_baseFlags);
 			ep.m_nPitch = (int)m_pitch.Value();
 
+			ep.m_hSoundScriptHash = m_hSoundScriptHash;
+			ep.m_nSoundEntryVersion = m_nSoundEntryVersion;
+
 			// only pass the position if it's coming from the world
 			if( EntIndex() == 0 )
 				ep.m_pOrigin = &m_soundOrigin;
@@ -730,6 +744,9 @@ void CSoundPatch::AddPlayerPost( CBasePlayer *pPlayer )
 		ep.m_SoundLevel = m_soundlevel;
 		ep.m_nFlags = (SND_CHANGE_VOL | m_baseFlags);
 		ep.m_nPitch = (int)m_pitch.Value();
+
+		ep.m_hSoundScriptHash = m_hSoundScriptHash;
+		ep.m_nSoundEntryVersion = m_nSoundEntryVersion;
 
 		// only pass the position if it's coming from the world
 		if( EntIndex() == 0 )

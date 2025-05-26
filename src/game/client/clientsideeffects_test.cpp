@@ -30,8 +30,6 @@ PRECACHE( MATERIAL, "effects/gunshiptracer" )
 PRECACHE( MATERIAL, "effects/bluespark" )
 PRECACHE_REGISTER_END()
 
-extern ConVar sv_soundemitter_pause_all;
-
 //-----------------------------------------------------------------------------
 // Purpose: 
 // Input  : &data - 
@@ -284,7 +282,7 @@ void FX_TracerSound( const Vector &start, const Vector &end, int iTracerType )
 		CLocalPlayerFilter filter;
 		enginesound->EmitSound(	filter, SOUND_FROM_WORLD, CHAN_STATIC, params.soundname, 
 			params.volume, SNDLVL_TO_ATTN(params.soundlevel), 
-			sv_soundemitter_pause_all.GetBool() ? SND_SHOULDPAUSE : 0, params.pitch, &start, &shotDir, false);
+			0, params.pitch, &start, &shotDir, false);
 	}
 
 	// FIXME: This has a bad behavior when both bullet + strider shots are whizzing by at the same time

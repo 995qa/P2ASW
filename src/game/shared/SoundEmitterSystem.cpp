@@ -38,8 +38,6 @@
 ConVar sv_soundemitter_trace( "sv_soundemitter_trace", "-1", FCVAR_REPLICATED, "Show all EmitSound calls including their symbolic name and the actual wave file they resolved to. (-1 = for nobody, 0 = for everybody, n = for one entity)\n" );
 ConVar cc_showmissing( "cc_showmissing", "0", FCVAR_REPLICATED, "Show missing closecaption entries." );
 
-ConVar sv_soundemitter_pause_all("sv_soundemitter_pause_all", "1", FCVAR_REPLICATED, "Set all sounds to pause when the game pauses. Only applies to new sounds that play.");
-
 extern ISoundEmitterSystemBase *soundemitterbase;
 static ConVar *g_pClosecaption = NULL;
 
@@ -429,7 +427,7 @@ public:
 
 		if ( filesystem->FileExists( scriptfile, "GAME" ) )
 		{
-			soundemitterbase->AddSoundOverrides( scriptfile );
+			soundemitterbase->AddSoundOverrides( scriptfile, false, true, false ); // p2port: Possibly remove the 3rd var for demo_viewer
 		}
 
 #if !defined( CLIENT_DLL )
@@ -643,10 +641,13 @@ public:
 			filter, 
 			entindex, 
 			params.channel, 
-			params.soundname,
+			ep.m_pSoundName,    // gamesound
+			handle,				// gamesound handle
+			params.soundname,   // soundfile
 			params.volume,
 			(soundlevel_t)params.soundlevel,
-			sv_soundemitter_pause_all.GetBool() ? ep.m_nFlags | SND_SHOULDPAUSE : ep.m_nFlags, 
+			params.m_nRandomSeed,
+			ep.m_nFlags, 
 			params.pitch,
 			ep.m_pOrigin,
 			NULL,
@@ -716,6 +717,28 @@ public:
 			if ( bSwallowed )
 				return;
 #endif
+			
+			// Emission by soundfile is typically because the calling code has 
+			// already cracked the soundscript, loaded it's parameters and altered some.
+			// However, we want to retain BOTH the calling code's parameters
+			// AND the soundscript handle so that we have ALL the data for processing.
+			//
+			// if this has been updated to include soundscript handle, we can tell
+			// by the soundentry version and a valid soundscript handle. We flag it
+			// and add the data to transmission.
+			//
+			int nFlags = ep.m_nFlags;
+			const char *pSoundEntryName = ep.m_pSoundName;
+			if( ep.m_hSoundScriptHash != SOUNDEMITTER_INVALID_HASH &&
+				ep.m_nSoundEntryVersion > 1 &&
+				sv_soundemitter_version.GetInt() > 1 )
+			{
+				// reget original soundentry name
+				pSoundEntryName = soundemitterbase->GetSoundName( ep.m_hSoundScriptHash );
+				nFlags |= SND_IS_SCRIPTHANDLE;
+				TraceEmitSoundEntry( ep.m_hSoundScriptHash, pSoundEntryName, ep.m_pSoundName );
+
+			}
 
 			// TERROR:
 			float startTime = Plat_FloatTime();
@@ -735,11 +758,14 @@ public:
 			enginesound->EmitSound( 
 				filter, 
 				entindex, 
-				ep.m_nChannel, 
+				ep.m_nChannel,
+				pSoundEntryName,
+				ep.m_hSoundScriptHash,
 				ep.m_pSoundName, 
 				ep.m_flVolume, 
-				ep.m_SoundLevel, 
-				sv_soundemitter_pause_all.GetBool() ? ep.m_nFlags | SND_SHOULDPAUSE : ep.m_nFlags, 
+				ep.m_SoundLevel,
+				0,
+				ep.m_nFlags, 
 				ep.m_nPitch, 
 				ep.m_pOrigin,
 				NULL, 
@@ -1016,9 +1042,6 @@ public:
 			params.volume = flVolume;
 		}
 
-		if (sv_soundemitter_pause_all.GetBool())
-			iFlags |= SND_SHOULDPAUSE;
-
 #if defined( CLIENT_DLL )
 		enginesound->EmitAmbientSound( params.soundname, params.volume, params.pitch, iFlags, soundtime );
 #else
@@ -1151,10 +1174,6 @@ public:
 		if ( bSwallowed )
 			return;
 #endif
-
-		if (sv_soundemitter_pause_all.GetBool())
-			flags |= SND_SHOULDPAUSE;
-
 
 		if ( pSample && ( Q_stristr( pSample, ".wav" ) || Q_stristr( pSample, ".mp3" )) )
 		{
@@ -1768,10 +1787,6 @@ int SENTENCEG_Lookup(const char *sample)
 
 void UTIL_EmitAmbientSound( int entindex, const Vector &vecOrigin, const char *samp, float vol, soundlevel_t soundlevel, int fFlags, int pitch, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
 {
-
-	if (sv_soundemitter_pause_all.GetBool())
-		fFlags |= SND_SHOULDPAUSE;
-
 	if (samp && *samp == '!')
 	{
 		int sentenceIndex = SENTENCEG_Lookup(samp);

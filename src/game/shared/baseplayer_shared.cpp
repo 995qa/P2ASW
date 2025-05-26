@@ -727,6 +727,8 @@ void CBasePlayer::PlayStepSound( Vector &vecOrigin, surfacedata_t *psurface, flo
 	ep.m_nFlags = 0;
 	ep.m_nPitch = params.pitch;
 	ep.m_pOrigin = &vecOrigin;
+	ep.m_hSoundScriptHash = params.m_hSoundScriptHash;
+	ep.m_nSoundEntryVersion = params.m_nSoundEntryVersion;
 
 	EmitSound( filter, entindex(), ep );
 }

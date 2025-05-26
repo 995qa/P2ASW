@@ -71,9 +71,10 @@ public:
 		extern bool s_bCanAccessCurrentView;
 		AllowCurrentViewAccess( true );
 		Frustum frustum;
-		render->Push3DView( *this, 0, NULL, frustum );
+		CMatRenderContextPtr pRenderContext( materials );
+		render->Push3DView( pRenderContext, *this, 0, NULL, frustum );
 		BuildWorldRenderLists( true, -1, true, true );
-		render->PopView( frustum );
+		render->PopView( pRenderContext, frustum );
 		AllowCurrentViewAccess( false );
 
 		render->DrawLightmaps( m_pWorldRenderList, mat_showlightmappage.GetInt() );

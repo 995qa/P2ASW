@@ -73,6 +73,8 @@ namespace physicssound
 				ep.m_SoundLevel = params.soundlevel;
 				ep.m_nPitch = params.pitch;
 				ep.m_pOrigin = &sound.origin;
+				ep.m_hSoundScriptHash = params.m_hSoundScriptHash;
+				ep.m_nSoundEntryVersion = params.m_nSoundEntryVersion;
 
 				CBaseEntity::EmitSound( filter, 0 /*sound.entityIndex*/, ep );
 			}
@@ -167,6 +169,8 @@ namespace physicssound
 			ep.m_SoundLevel = params.soundlevel;
 			ep.m_nPitch = params.pitch;
 			ep.m_pOrigin = &sound.origin;
+			ep.m_hSoundScriptHash = params.m_hSoundScriptHash;
+			ep.m_nSoundEntryVersion = params.m_nSoundEntryVersion;
 			CBaseEntity::EmitSound( filter, 0 /*sound.entityIndex*/, ep );
 		}
 		list.RemoveAll();
