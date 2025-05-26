@@ -45,6 +45,13 @@ class CViewSetup
 public:
 	CViewSetup()
 	{
+		// p2port: only Emulsion does this...
+		//{
+		m_nUnscaledX = x;
+		m_nUnscaledY = y;
+		m_nUnscaledWidth = width;
+		m_nUnscaledHeight = height;
+		//}
 		m_flAspectRatio = 0.0f;
 
 		// These match mat_dof convars
@@ -67,19 +74,22 @@ public:
 		m_bCullFrontFaces = false;
 		m_bCustomViewMatrix = false;
 //		m_bUseExplicitViewVector = false;
-		m_bRenderFlashlightDepthTranslucents = false;
 	}
 
 // shared by 2D & 3D views
 
 	// left side of view window
-	int			x;					
+	int			x;
+	int			m_nUnscaledX;
 	// top side of view window
-	int			y;					
+	int			y;
+	int			m_nUnscaledY;
 	// width of view window
-	int			width;				
+	int			width;
+	int			m_nUnscaledWidth;
 	// height of view window
-	int			height;				
+	int			height;
+	int			m_nUnscaledHeight;
 
 // the rest are only used by 3D views
 
@@ -155,8 +165,6 @@ public:
 
 	// Cached mode for certain full-scene per-frame varying state such as sun entity coverage
 	bool		m_bCacheFullSceneState:1;
-
-	bool		m_bRenderFlashlightDepthTranslucents:1;
 };
 
 
