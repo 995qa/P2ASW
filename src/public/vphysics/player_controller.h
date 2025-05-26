@@ -16,6 +16,12 @@ public:
 	virtual int	ShouldMoveTo( IPhysicsObject *pObject, const Vector &position ) = 0;
 };
 
+enum PlayerContactState_t
+{
+	PLAYER_CONTACT_PHYSICS = 1,
+	PLAYER_CONTACT_GAMEOBJECT = 2,
+};
+
 class IPhysicsPlayerController
 {
 public:
