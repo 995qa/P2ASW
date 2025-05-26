@@ -593,6 +593,28 @@ struct MaterialTextureInfo_t
 	int iExcludeInformation;
 };
 
+struct ApplicationPerformanceCountersInfo_t
+{
+	float msMain;
+	float msMST;
+	float msGPU;
+	float msFlip;
+	float msTotal;
+};
+
+struct ApplicationInstantCountersInfo_t
+{
+	uint m_nCpuActivityMask;
+	uint m_nDeferredWordsAllocated;
+};
+
+
+struct WorldListIndicesInfo_t
+{
+	uint m_nTotalIndices; // how many indices the world needs to render
+	uint m_nMaxBatchIndices; // how many indices there are in the largest batch
+};
+
 struct AspectRatioInfo_t
 {
 	bool m_bIsWidescreen;

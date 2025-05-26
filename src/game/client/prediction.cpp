@@ -326,7 +326,7 @@ void CPrediction::OnReceivedUncompressedPacket( void )
 //			current_world_update_packet - 
 // Output : void CPrediction::PreEntityPacketReceived
 //-----------------------------------------------------------------------------
-void CPrediction::PreEntityPacketReceived ( int commands_acknowledged, int current_world_update_packet )
+void CPrediction::PreEntityPacketReceived ( int commands_acknowledged, int current_world_update_packet, int server_ticks_elapsed )
 {
 #if !defined( NO_ENTITY_PREDICTION )
 #if defined( _DEBUG )
@@ -366,6 +366,13 @@ void CPrediction::PreEntityPacketReceived ( int commands_acknowledged, int curre
 
 			if ( !ent->GetPredictable() )
 				continue;
+
+			// p2port: CSGO code should be copied to fix these, but headers are a bigger priority now.
+			if ( (commands_acknowledged != server_ticks_elapsed) && ent->PredictionIsPhysicallySimulated() )
+			{
+				ent->ShiftIntermediateData_TickAdjust( server_ticks_elapsed - commands_acknowledged, m_Split[nSlot].m_nCommandsPredicted );
+				m_Split[nSlot].m_bPerformedTickShift = true;
+			}
 
 			ent->PreEntityPacketReceived( commands_acknowledged );
 			ent->OnPostRestoreData();

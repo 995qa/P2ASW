@@ -47,8 +47,8 @@ public:
 					);
 
 	virtual void	OnReceivedUncompressedPacket( void );
-
-	virtual void	PreEntityPacketReceived( int commands_acknowledged, int current_world_update_packet );
+	
+	virtual void	PreEntityPacketReceived( int commands_acknowledged, int current_world_update_packet, int server_ticks_elapsed );
 	virtual void	PostEntityPacketReceived( void );
 	virtual void	PostNetworkDataReceived( int commands_acknowledged );
 

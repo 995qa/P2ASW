@@ -115,7 +115,7 @@ public:
 	virtual XUSER_SIGNIN_STATE UserGetSigninState( int iCtrlr ) = 0;
 };
 
-#define XBOXSYSTEM_INTERFACE_VERSION	"XboxSystemInterface001"
+#define XBOXSYSTEM_INTERFACE_VERSION	"XboxSystemInterface002"
 
 
 
