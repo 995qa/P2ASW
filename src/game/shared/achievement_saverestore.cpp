@@ -35,6 +35,7 @@ public:
 
 	void Save( ISave *pSave )
 	{
+#if 0 // p2port: no achievement manager in Emulsion
 		CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 		if ( !pAchievementMgr )
 			return;
@@ -77,6 +78,7 @@ public:
 			}
 		}
 		pSave->EndBlock();
+#endif
 	}
 
 	//---------------------------------
@@ -103,6 +105,7 @@ public:
 
 	void Restore( IRestore *pRestore, bool createPlayers )
 	{
+#if 0 // p2port: no achievement manager in Emulsion
 		CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 		if ( !pAchievementMgr )
 			return;
@@ -139,6 +142,7 @@ public:
 
 			pAchievementMgr->PostRestoreSavedGame();
 		}
+#endif
 	}
 
 private:

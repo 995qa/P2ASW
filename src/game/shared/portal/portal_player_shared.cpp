@@ -20,7 +20,7 @@
 #include "portal_mp_gamerules.h"
 
 #ifdef CLIENT_DLL
-
+//#define CATAPULTS
 #include "c_portal_player.h"
 #include "prediction.h"
 #define CRecipientFilter C_RecipientFilter
@@ -40,7 +40,9 @@ extern IViewEffects *GetViewEffects();
 #include "cdll_util.h"
 #include "c_portal_base2d.h"
 #include "c_weapon_paintgun.h"
+#ifdef CATAPULTS
 #include "c_trigger_catapult.h"
+#endif
 #include "c_trigger_tractorbeam.h"
 #include "c_basetempentity.h"
 #include "igameevents.h"
@@ -48,7 +50,7 @@ extern IViewEffects *GetViewEffects();
 #define CTriggerCatapult C_TriggerCatapult
 
 #else
-
+#define CATAPULTS
 #include "portal_player.h"
 #include "ai_basenpc.h"
 #include "portal_gamestats.h"
@@ -1542,6 +1544,7 @@ float CPortal_Player::PredictedBounce( void )
 	fSeconds -= tr.fraction * fStep;
 
 	bool bTouched = false;
+#ifdef CATAPULTS
 	float fLeastFraction = tr.fraction;
 
 	Ray_t ray;
@@ -1571,7 +1574,7 @@ float CPortal_Player::PredictedBounce( void )
 			}
 		}
 	}
-
+#endif
 	fSeconds += tr.fraction * fStep;
 
 	if ( bTouched )

@@ -4852,7 +4852,6 @@ void CRendering3dView::DrawOpaqueRenderables( bool bShadowDepth )
 		if ( !itEntity->m_pRenderable )
 			continue;
 
-		IClientUnknown *pUnknown = itEntity->m_pRenderable->GetIClientUnknown();
 		IClientModelRenderable *pModelRenderable = itEntity->m_pRenderable->GetClientModelRenderable();
 		if ( !bUseFastPath || !pModelRenderable )
 			continue;
@@ -5273,7 +5272,6 @@ void CRendering3dView::DrawTranslucentRenderables( bool bInSkybox, bool bShadowD
 			{
 				Assert( pEntities[i].m_pRenderable );
 				IClientRenderable *pRenderable = pEntities[i].m_pRenderable;
-				IClientUnknown *pUnknown = pRenderable->GetIClientUnknown();
 				IClientModelRenderable *pModelRenderable = pRenderable->GetClientModelRenderable();
 				if ( pModelRenderable )
 				{
@@ -6940,8 +6938,8 @@ void CAboveWaterView::CReflectionView::Draw()
 	SetupCurrentView( vecOldOrigin, vecOldAngles, ( view_id_t )nSaveViewID );
 
 	// This is here for multithreading
-	CMatRenderContextPtr pRenderContext( materials );
 	pRenderContext->Flush();
+
 }
 
 

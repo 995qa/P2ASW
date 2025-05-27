@@ -1097,6 +1097,7 @@ public:
 	void							DestroyIntermediateData( void );
 	void							ShiftIntermediateDataForward( int slots_to_remove, int previous_last_slot );
 	void							ShiftFirstPredictedIntermediateDataForward( int slots_to_remove );
+	void							ShiftIntermediateData_TickAdjust( int delta, int last_slot );
 
 	void							*GetPredictedFrame( int framenumber );
 	void							*GetFirstPredictedFrame( int framenumber ); //similar to GetPredictedFrame() but only stores the results from the first prediction of each command
@@ -1113,6 +1114,8 @@ public:
 	void							PostEntityPacketReceived( void );
 	bool							PostNetworkDataReceived( int commands_acknowledged );
 	virtual void					HandlePredictionError( bool bErrorInThisEntity ); //we just processed a network update with errors, bErrorInThisEntity is false if the prediction errors were entirely in other entities and not this one
+	virtual bool					PredictionErrorShouldResetLatchedForAllPredictables( void ) { return true; } //legacy behavior is that any prediction error causes all predictables to reset latched
+	virtual bool					PredictionIsPhysicallySimulated( void ) { return false; } //by default, all prediction is driven by player commands, return true if your prediction is based on server simulation ticks
 	bool							GetPredictionEligible( void ) const;
 	void							SetPredictionEligible( bool canpredict );
 

@@ -638,7 +638,7 @@ void CGameRules::CreateStandardEntities()
 void CGameRules::MarkAchievement( IRecipientFilter& filter, char const *pchAchievementName )
 {
 	gamestats->Event_IncrementCountedStatistic( vec3_origin, pchAchievementName, 1.0f );
-
+#if 0 // p2port: no achievement manager in Emulsion
 	IAchievementMgr *pAchievementMgr = engine->GetAchievementMgr();
 	if ( !pAchievementMgr )
 		return;
@@ -647,6 +647,7 @@ void CGameRules::MarkAchievement( IRecipientFilter& filter, char const *pchAchie
 	pAchievementMgr->OnMapEvent( pchAchievementName, SINGLE_PLAYER_SLOT );
 #else
 	pAchievementMgr->OnMapEvent( pchAchievementName, GET_ACTIVE_SPLITSCREEN_SLOT() );
+#endif
 #endif
 }
 

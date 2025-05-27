@@ -1064,6 +1064,7 @@ void CViewRender::Render( vrect_t *rect )
 	// Draw all of the UI stuff "fullscreen"
 	if ( true ) // For PIXEVENT
 	{
+		CMatRenderContextPtr pRenderContext( materials );
 		#if PIX_ENABLE
 		{
 			CMatRenderContextPtr pRenderContext( materials );
@@ -1076,12 +1077,12 @@ void CViewRender::Render( vrect_t *rect )
 		view2d.y				= rect->y;
 		view2d.width			= rect->width;
 		view2d.height			= rect->height;
-		render->Push2DView( view2d, 0, NULL, GetFrustum() );
+		render->Push2DView( pRenderContext, view2d, 0, NULL, GetFrustum() );
 		render->VGui_Paint( PAINT_UIPANELS );
 		{
 			// The engine here is trying to access CurrentView() etc. which is bogus
 			ACTIVE_SPLITSCREEN_PLAYER_GUARD( 0 );
-			render->PopView( GetFrustum() );
+			render->PopView( pRenderContext, GetFrustum() );
 		}
 	}
 

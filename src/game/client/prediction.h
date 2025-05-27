@@ -163,7 +163,7 @@ private:
 			m_bPreviousAckHadErrors = false;
 			m_flIdealPitch = 0.0f;
 			m_nLastCommandAcknowledged = 0;
-
+			m_bPreviousAckErrorTriggersFullLatchReset = false;
 		}
 
 		bool			m_bFirstTimePredicted;
@@ -172,6 +172,9 @@ private:
 		int				m_bPreviousAckHadErrors;
 		float			m_flIdealPitch;
 		int				m_nLastCommandAcknowledged;
+		bool			m_bPreviousAckErrorTriggersFullLatchReset;
+		CUtlVector< CHandle< CBaseEntity > > m_EntsWithPredictionErrorsInLastAck;
+		bool			m_bPerformedTickShift;
 	};
 
 	Split_t				m_Split[ MAX_SPLITSCREEN_PLAYERS ];

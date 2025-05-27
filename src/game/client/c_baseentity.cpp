@@ -5614,6 +5614,98 @@ void C_BaseEntity::ShiftFirstPredictedIntermediateDataForward( int slots_to_remo
 
 
 //-----------------------------------------------------------------------------
+// Purpose: For a predicted entity that is physically simulated, compensate for the prediction frames being coupled to player commands
+//			by shifting them around if there's an unequal number of ticks and player commands executed on the server
+// Input  : delta - number of server ticks elapsed minus the number of player commands acknowledged
+//			last_slot - the number of valid frames currently stored in m_pIntermediateData
+//-----------------------------------------------------------------------------
+void C_BaseEntity::ShiftIntermediateData_TickAdjust( int delta, int last_slot )
+{
+#if !defined( NO_ENTITY_PREDICTION )
+	Assert( m_pIntermediateData );
+	if ( !m_pIntermediateData || (last_slot == 0) )
+		return;
+
+	//Warning( "C_BaseEntity::ShiftIntermediateData_TickAdjust( %f ) delta: %i  last: %i\n", gpGlobals->curtime, delta, last_slot );
+
+	if( delta > last_slot )
+	{
+		delta = last_slot;
+	}
+	else if( delta < -last_slot )
+	{
+		return; //acknowledged more commands than we predicted. Won't be restoring frames anyway
+	}
+
+	//Warning( "\t" );
+
+	size_t allocsize = GetIntermediateDataSize();
+
+#if defined( DBGFLAG_ASSERT ) && 1
+	// Remember starting configuration
+	byte *debugCheck[ ARRAYSIZE( m_pIntermediateData ) ];
+	memcpy( debugCheck, m_pIntermediateData, ARRAYSIZE( m_pIntermediateData ) * sizeof( byte * ) );
+#endif
+
+	byte *saved[ ARRAYSIZE( m_pIntermediateData ) ];
+	memcpy( saved, m_pIntermediateData, last_slot * sizeof( byte * ) );
+
+	if( delta < 0 ) //more commands acknowledged than ticks run, slots indices should increment in value by negative delta
+	{
+		int i = 0;
+		int iStop = last_slot + delta;
+		for( ; i < iStop; ++i )
+		{
+			//Warning( "%i<-%i,", i - delta, i );
+			m_pIntermediateData[i - delta] = saved[i];
+		}
+
+		for( ; i < last_slot; ++i )
+		{
+			//Warning( "%i<-%i,", i - iStop, i );
+			m_pIntermediateData[i - iStop] = saved[i];
+			memcpy( m_pIntermediateData[i - iStop], saved[0], allocsize ); //make duplicates of the first frame we have available
+		}
+	}
+	else //more ticks run than commands acknowledged, slot indices should decrement by delta
+	{
+		int i = 0;
+		int iStop = last_slot - delta;
+		for( ; i < iStop; ++i )
+		{
+			//Warning( "%i<-%i,", i, i + delta );
+			m_pIntermediateData[i] = saved[i + delta];
+		}
+
+		for( ; i < last_slot; ++i )
+		{
+			//Warning( "%i<-%i,", i, i - iStop );
+			m_pIntermediateData[i] = saved[i - iStop];
+			memcpy( m_pIntermediateData[i], saved[last_slot - 1], allocsize ); //make duplicates of the last frame we have available
+		}
+	}
+
+	//Warning( "\n" );
+
+#if defined( DBGFLAG_ASSERT ) && 1
+	for( int i = 0; i < ARRAYSIZE( m_pIntermediateData ); ++i )
+	{
+		int j = 0;
+		for( ; j < ARRAYSIZE( m_pIntermediateData ); ++j )
+		{
+			if( m_pIntermediateData[i] == debugCheck[j] )
+				break;
+		}
+
+		Assert( j != ARRAYSIZE( m_pIntermediateData ) );
+	}
+#endif
+
+#endif
+}
+
+
+//-----------------------------------------------------------------------------
 // Purpose: 
 // Input  : framenumber - 
 //-----------------------------------------------------------------------------

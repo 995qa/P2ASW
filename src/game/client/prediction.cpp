@@ -583,6 +583,7 @@ void CPrediction::CheckPredictConvar()
 	m_bOldCLPredictValue = cl_predict->GetBool();
 }
 
+ConVar cl_prediction_error_timestamps( "cl_prediction_error_timestamps", "0" );
 //-----------------------------------------------------------------------------
 // Purpose: Called at the end of the frame if any packets were received
 // Input  : error_check - 
@@ -615,6 +616,8 @@ void CPrediction::PostNetworkDataReceived( int commands_acknowledged )
 		Split_t &split = m_Split[ nSlot ];
 		split.m_nServerCommandsAcknowledged += commands_acknowledged;
 		split.m_bPreviousAckHadErrors = false;
+		split.m_bPreviousAckErrorTriggersFullLatchReset = false;
+		split.m_EntsWithPredictionErrorsInLastAck.RemoveAll();
 
 		if ( bPredict )
 		{
@@ -640,6 +643,8 @@ void CPrediction::PostNetworkDataReceived( int commands_acknowledged )
 				if ( bHadErrors[i] )
 				{
 					split.m_bPreviousAckHadErrors = true;
+					split.m_bPreviousAckErrorTriggersFullLatchReset |= ent->PredictionErrorShouldResetLatchedForAllPredictables();
+					split.m_EntsWithPredictionErrorsInLastAck.AddToTail( ent ); 
 				}
 
 				if ( !showlist )
@@ -663,7 +668,6 @@ void CPrediction::PostNetworkDataReceived( int commands_acknowledged )
 			//We do this in two passes. One pass to fix the fields, then another to save off the changes after they've all finished (to handle interdependancies, portals)
 			if( split.m_bPreviousAckHadErrors )
 			{
-
 				//give each predicted entity a chance to fix up its non-networked predicted fields
 				for ( i = 0; i < c; i++ )
 				{
@@ -730,6 +734,10 @@ void CPrediction::PostNetworkDataReceived( int commands_acknowledged )
 			}
 		}
 
+		if( split.m_bPreviousAckHadErrors && cl_prediction_error_timestamps.GetBool() )
+		{
+			Warning( "Prediction errors occurred at %i %f\n", gpGlobals->tickcount, gpGlobals->curtime );
+		}
 	}
 
 	CheckPredictConvar();
@@ -1624,21 +1632,24 @@ int CPrediction::ComputeFirstCommandToExecute( int nSlot, bool received_new_worl
 	// NOTE:  received_new_world_update only gets set to false if cl_pred_optimize >= 1
 	if ( !received_new_world_update || !split.m_nServerCommandsAcknowledged )
 	{
-		// this is where we would normally start
-		int start = incoming_acknowledged + 1;
-		// outgoing_command is where we really want to start
-		skipahead = MAX( 0, ( outgoing_command - start ) );
-		// Don't start past the last predicted command, though, or we'll get prediction errors
-		skipahead = MIN( skipahead, split.m_nCommandsPredicted );
+		if( !split.m_bPerformedTickShift )
+		{
+			// this is where we would normally start
+			int start = incoming_acknowledged + 1;
+			// outgoing_command is where we really want to start
+			skipahead = MAX( 0, ( outgoing_command - start ) );
+			// Don't start past the last predicted command, though, or we'll get prediction errors
+			skipahead = MIN( skipahead, split.m_nCommandsPredicted );
 
-		// Always restore since otherwise we might start prediction using an "interpolated" value instead of a purely predicted value
-		RestoreEntityToPredictedFrame( nSlot, skipahead - 1 );
+			// Always restore since otherwise we might start prediction using an "interpolated" value instead of a purely predicted value
+			RestoreEntityToPredictedFrame( nSlot, skipahead - 1 );
 
-		//Msg( "%i/%i no world, skip to %i restore from slot %i\n", 
-		//	gpGlobals->framecount,
-		//	gpGlobals->tickcount,
-		//	skipahead,
-		//	skipahead - 1 );
+			//Msg( "%i/%i no world, skip to %i restore from slot %i\n", 
+			//	gpGlobals->framecount,
+			//	gpGlobals->tickcount,
+			//	skipahead,
+			//	skipahead - 1 );
+		}
 	}
 	else
 	{
@@ -1650,7 +1661,8 @@ int CPrediction::ComputeFirstCommandToExecute( int nSlot, bool received_new_worl
 		if ( cl_pred_optimize.GetInt() >= 2 && 
 			!split.m_bPreviousAckHadErrors && 
 			split.m_nCommandsPredicted > 0 && 
-			split.m_nServerCommandsAcknowledged <= split.m_nCommandsPredicted )
+			split.m_nServerCommandsAcknowledged <= split.m_nCommandsPredicted &&
+			!split.m_bPerformedTickShift )
 		{
 			// Copy all of the previously predicted data back into entity so we can skip repredicting it
 			// This is the final slot that we previously predicted
@@ -1698,12 +1710,35 @@ int CPrediction::ComputeFirstCommandToExecute( int nSlot, bool received_new_worl
 				float flPrev = gpGlobals->curtime;
 				gpGlobals->curtime = pLocalPlayer->GetTimeBase() - TICK_INTERVAL;
 				
-				for ( int i = 0; i < GetPredictables( nSlot )->GetPredictableCount(); i++ )
-				{
-					C_BaseEntity *entity = GetPredictables( nSlot )->GetPredictable( i );
-					if ( entity )
+				if( split.m_bPreviousAckErrorTriggersFullLatchReset || (cl_pred_doresetlatch.GetInt() == 2) )
+				{				
+					for ( int i = 0; i < GetPredictables( nSlot )->GetPredictableCount(); i++ )
 					{
-						entity->ResetLatched();
+						C_BaseEntity *entity = GetPredictables( nSlot )->GetPredictable( i );
+						if ( entity )
+						{
+							entity->ResetLatched();
+						}
+					}
+				}
+				else
+				{
+					//individual latch resets
+					for ( int i = 0; i < split.m_EntsWithPredictionErrorsInLastAck.Count(); i++ )
+					{
+						C_BaseEntity *entity = split.m_EntsWithPredictionErrorsInLastAck[i];
+						if( entity )
+						{
+							//ensure it's still in our predictable list
+							for ( int j = 0; j < GetPredictables( nSlot )->GetPredictableCount(); j++ )
+							{
+								if( entity == GetPredictables( nSlot )->GetPredictable( j ) )
+								{
+									entity->ResetLatched();
+									break;
+								}
+							}
+						}
 					}
 				}
 
@@ -1720,6 +1755,7 @@ int CPrediction::ComputeFirstCommandToExecute( int nSlot, bool received_new_worl
 	split.m_nCommandsPredicted	= 0;
 	split.m_bPreviousAckHadErrors = false;
 	split.m_nServerCommandsAcknowledged = 0;
+	split.m_bPerformedTickShift = false;
 #endif
 	return destination_slot;
 }
