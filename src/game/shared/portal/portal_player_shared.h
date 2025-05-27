@@ -323,8 +323,8 @@ struct PortalPlayerStatistics_t
 	DECLARE_CLASS_NOBASE( PortalPlayerStatistics_t );
 	DECLARE_EMBEDDED_NETWORKVAR();
 
-#ifdef GAME_DLL
-	DECLARE_SIMPLE_DATADESC();
+#ifdef GAME_DLL // p2port: Give a proper datadesc
+	// DECLARE_SIMPLE_DATADESC();
 #endif
 
 	CNetworkVar( int, iNumPortalsPlaced );

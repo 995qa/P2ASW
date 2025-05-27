@@ -451,7 +451,7 @@ BEGIN_DATADESC( CPortal_Player )
 	DEFINE_EMBEDDED( m_PortalLocal ),
 
 	//DEFINE_FIELD ( m_PlayerAnimState, CPortalPlayerAnimState ),
-	DEFINE_EMBEDDED( m_StatsThisLevel ),
+	//DEFINE_EMBEDDED( m_StatsThisLevel ), // p2port: add this later
 	//DEFINE_FIELD( m_bPlayUseDenySound, FIELD_BOOLEAN ),
 
 	DEFINE_THINKFUNC( PlayerTransitionCompleteThink ),

@@ -186,7 +186,7 @@ public:
 	const wchar_t *GetWString( const char *keyName = NULL, const wchar_t *defaultValue = L"" );
 	void *GetPtr( const char *keyName = NULL, void *defaultValue = (void*)0 );
 	Color GetColor( const char *keyName = NULL , const Color &defaultColor = Color( 0, 0, 0, 0 ) );
-	bool GetBool( const char *keyName = NULL, bool defaultValue = false ); // p2port: Removed only in Emulsion  { return GetInt( keyName, defaultValue ? 1 : 0 ) ? true : false; }
+	bool GetBool( const char *keyName = NULL, bool defaultValue = false ) { return GetInt( keyName, defaultValue ? 1 : 0 ) ? true : false; } // p2port: Removed in Emulsion, but adding it back
 	bool  IsEmpty(const char *keyName = NULL);
 
 	// Data access
