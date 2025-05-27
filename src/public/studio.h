@@ -2423,7 +2423,6 @@ struct studiohdr_t
 	inline mstudioanimblock_t *pAnimBlock( int i ) const { Assert( i > 0 && i < numanimblocks); return (mstudioanimblock_t *)(((byte *)this) + animblockindex) + i; };
 	mutable void		*animblockModel;
 	byte *				GetAnimBlock( int i, bool preloadIfMissing = true ) const;
-	bool				hasAnimBlockBeenPreloaded( int i ) const;
 
 	int					bonetablebynameindex;
 	inline const byte	*GetBoneTableSortedByName() const { return (byte *)this + bonetablebynameindex; }

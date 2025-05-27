@@ -93,6 +93,8 @@ public:
 
 	virtual bool IsTransitionEffectEnabled();
 
+	virtual void RestoreTopLevelMenu() {} // p2port: There should be a real function
+
 private:
 	void SendConnectedToGameMessage();
 

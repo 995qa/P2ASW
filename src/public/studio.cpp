@@ -63,15 +63,6 @@ byte *mstudioanimdesc_t::pAnimBlock( int block, int index, bool preloadIfMissing
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: Indicates if the block has been preloaded already.
-//			Returns true if the block is in memory, or is asynchronously loading.
-//-----------------------------------------------------------------------------
-bool mstudioanimdesc_t::hasAnimBlockBeenPreloaded( int block ) const
-{
-	return pStudiohdr()->hasAnimBlockBeenPreloaded( block );
-}
-
-//-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
 

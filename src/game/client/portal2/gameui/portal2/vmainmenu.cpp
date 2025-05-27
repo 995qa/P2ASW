@@ -1154,7 +1154,7 @@ CEG_NOINLINE void MainMenu::ApplySchemeSettings( IScheme *pScheme )
 				SteamAPI_GetHSteamUser(), SteamAPI_GetHSteamPipe(), STEAMREMOTESTORAGE_INTERFACE_VERSION ):NULL;
 #endif
 
-			int32 availableBytes, totalBytes = 0;
+			uint64 availableBytes, totalBytes = 0;
 			if ( pRemoteStorage && pRemoteStorage->GetQuota( &totalBytes, &availableBytes ) )
 			{
 				if ( totalBytes > 0 )
