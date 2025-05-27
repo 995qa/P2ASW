@@ -35,6 +35,29 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+BEGIN_DEFINE_LOGGING_CHANNEL( LOG_SND_EMITTERSYSTEM, "SndEmitterSystem", LCF_CONSOLE_ONLY, LS_MESSAGE );
+ADD_LOGGING_CHANNEL_TAG( "SndEmitterSystem" );
+
+END_DEFINE_LOGGING_CHANNEL();
+
+
+ConVar sv_soundemitter_version( "sv_soundemitter_version", "2", FCVAR_REPLICATED | FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY, "specfies what version of soundemitter system to use\n" );
+
+#ifdef PORTAL2
+// THIS FUNCTION IS SUFFICIENT FOR PORTAL2 SPECIFIC CIRCUMSTANCES
+// AND MAY OR MAY NOT FUNCTION AS EXPECTED WHEN USED WITH MULTIPLE
+// SPLITSCREEN CLIENTS NETWORKED TOGETHER, ETC.
+ConVar snd_prevent_ss_duplicates( "snd_prevent_ss_duplicates", "1", FCVAR_REPLICATED | FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY, "switch to en/disable the prevention of splitscreen audio file duplicates\n" );
+#else
+ConVar snd_prevent_ss_duplicates( "snd_prevent_ss_duplicates", "0", FCVAR_REPLICATED | FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY, "switch to en/disable the prevention of splitscreen audio file duplicates\n" );
+#endif
+
+#if defined( CLIENT_DLL )
+ConVar snd_sos_show_client_xmit( "snd_sos_show_client_xmit", "0", FCVAR_CHEAT );
+#else
+ConVar snd_sos_show_server_xmit( "snd_sos_show_server_xmit", "0", FCVAR_CHEAT );
+#endif
+
 ConVar sv_soundemitter_trace( "sv_soundemitter_trace", "-1", FCVAR_REPLICATED, "Show all EmitSound calls including their symbolic name and the actual wave file they resolved to. (-1 = for nobody, 0 = for everybody, n = for one entity)\n" );
 ConVar cc_showmissing( "cc_showmissing", "0", FCVAR_REPLICATED, "Show missing closecaption entries." );
 
@@ -174,6 +197,9 @@ EmitSound_t::EmitSound_t( const CSoundParameters &src )
 	m_bWarnOnMissingCloseCaption = false;
 	m_bWarnOnDirectWaveReference = false;
 	m_nSpeakerEntity = -1;
+	// if sound is tagged as version 2 or higher this will be treated as a soundentry!
+	m_hSoundScriptHash = src.m_hSoundScriptHash;
+	m_nSoundEntryVersion = src.m_nSoundEntryVersion;
 }
 
 void Hack_FixEscapeChars( char *str )
@@ -427,7 +453,7 @@ public:
 
 		if ( filesystem->FileExists( scriptfile, "GAME" ) )
 		{
-			soundemitterbase->AddSoundOverrides( scriptfile, false, true, false ); // p2port: Possibly remove the 3rd var for demo_viewer
+			soundemitterbase->AddSoundOverrides( scriptfile, false, true );
 		}
 
 #if !defined( CLIENT_DLL )
@@ -564,12 +590,11 @@ public:
 		InternalPrefetchWaves( soundIndex );
 	}
 public:
+	
 
-	void EmitSoundByHandle( IRecipientFilter& filter, int entindex, const EmitSound_t & ep, HSOUNDSCRIPTHASH& handle )
+	// utility for cracking parameters
+	bool GetSoundEntryParameters( int entindex,  const EmitSound_t & ep, CSoundParameters & params, HSOUNDSCRIPTHASH& handle )
 	{
-		// Pull data from parameters
-		CSoundParameters params;
-
 		// Try to deduce the actor's gender
 		gender_t gender = GENDER_NONE;
 		CBaseEntity *ent = CBaseEntity::Instance( entindex );
@@ -581,22 +606,23 @@ public:
 
 		if ( !soundemitterbase->GetParametersForSoundEx( ep.m_pSoundName, handle, params, gender, true ) )
 		{
-			return;
+			return false;
 		}
 
 		if ( !params.soundname[0] )
-			return;
+			return false;
 
 		if ( !Q_strncasecmp( params.soundname, "vo", 2 ) &&
 			!( params.channel == CHAN_STREAM ||
-			   params.channel == CHAN_VOICE ) )
+			params.channel == CHAN_VOICE ) &&
+			params.m_nSoundEntryVersion < 2 )
 		{
 			DevMsg( "EmitSound:  Voice wave file %s doesn't specify CHAN_VOICE or CHAN_STREAM for sound %s\n",
 				params.soundname, ep.m_pSoundName );
 		}
 
 		// handle SND_CHANGEPITCH/SND_CHANGEVOL and other sound flags.etc.
-		if( ep.m_nFlags & SND_CHANGE_PITCH )
+		if( ( ep.m_nFlags & SND_CHANGE_PITCH ) )
 		{
 			params.pitch = ep.m_nPitch;
 		}
@@ -612,14 +638,76 @@ public:
 			params.soundname, 
 			params.soundlevel, 
 			params.volume, 
-			ep.m_nFlags,
+			ep.m_nFlags, 
 			params.pitch, 
 			ep.m_pOrigin, 
 			ep.m_flSoundTime,
 			ep.m_UtlVecSoundOrigin );
+
 		if ( bSwallowed )
-			return;
+			return false;
 #endif
+		return true;
+	}
+
+	// spew utility
+	void TraceEmitSoundEntry( int handle, const char *pSoundEntryName, CSoundParameters &pSoundParams, int nSeed )
+	{
+
+#if defined( CLIENT_DLL )
+		if( !snd_sos_show_client_xmit.GetInt() )
+		{
+			return;
+		}
+
+		Log_Msg( LOG_SND_EMITTERSYSTEM, Color( 180, 256, 180, 255 ), "Client: Emitting SoundEntry: %i : %s : %s : operators: %s : seed: %i\n", handle, pSoundEntryName, pSoundParams.soundname, pSoundParams.m_pOperatorsKV ? "true" : "false", nSeed );
+#else
+		if( !snd_sos_show_server_xmit.GetInt() )
+		{
+			return;
+		}
+
+		Log_Msg( LOG_SND_EMITTERSYSTEM, Color( 180, 180, 256, 255 ), "Server: Emitting SoundEntry: %i : %s : %s : operators: %s : seed: %i\n", handle, pSoundEntryName, pSoundParams.soundname, pSoundParams.m_pOperatorsKV ? "true" : "false", nSeed );
+#endif
+
+	}
+	// spew utility
+	void TraceEmitSoundEntry( HSOUNDSCRIPTHASH handle, const char *pSoundEntryName, const char *pSoundFileName )
+	{
+
+
+#if defined( CLIENT_DLL )
+		if( !snd_sos_show_client_xmit.GetInt() )
+		{
+			return;
+		}
+		Log_Msg( LOG_SND_EMITTERSYSTEM, Color( 180, 256, 180, 255 ), "Client: Emitting SoundEntry: %i : %s : %s\n", handle, pSoundEntryName, pSoundFileName );
+#else
+		if( !snd_sos_show_server_xmit.GetInt() )
+		{
+			return;
+		}
+		Log_Msg( LOG_SND_EMITTERSYSTEM, Color( 180, 180, 256, 255 ), "Server: Emitting SoundEntry: %i : %s : %s\n", handle, pSoundEntryName, pSoundFileName );
+#endif
+
+	}
+
+
+	//
+	// emitting via a "SoundEntry" as opposed to the actual "SoundFile"
+	// ep.m_pSoundName = a "SoundEntry" string
+	//
+	int EmitSoundByHandle( IRecipientFilter& filter, int entindex, const EmitSound_t & ep, HSOUNDSCRIPTHASH& handle )
+	{
+		// Whether the important params have come from code, defaults or the
+		// script, we emit using them to stay backwards compatible.
+		// It is possible, however, to override these values via the script
+		// entries.
+		CSoundParameters params;
+		if( !GetSoundEntryParameters( entindex, ep, params, handle ) )
+		{
+			return 0;
+		}
 
 #if defined( _DEBUG ) && !defined( CLIENT_DLL )
 		if ( !enginesound->IsSoundPrecached( params.soundname ) )
@@ -637,7 +725,34 @@ public:
 
 		// TERROR:
 		float startTime = Plat_FloatTime();
-		enginesound->EmitSound( 
+
+		// are we actually treating as a "SoundEntry"?
+		int nFlags = ep.m_nFlags;
+		if(sv_soundemitter_version.GetInt() > 1 && params.m_nSoundEntryVersion > 1)
+		{
+			 nFlags |= SND_IS_SCRIPTHANDLE;
+			
+			 TraceEmitSoundEntry( handle, ep.m_pSoundName, params, params.m_nRandomSeed );
+
+		}
+
+		// Emit via server or client engine call
+
+		// NOTE:  We must make a copy or else if the filter is owned by a SoundPatch, we'll end up destructively removing
+		//  all players from it!!!!
+		CRecipientFilter filterCopy;
+		filterCopy.CopyFrom( (CRecipientFilter &)filter );
+#ifdef PORTAL2
+		if( snd_prevent_ss_duplicates.GetBool() )
+		{
+			// THIS FUNCTION IS SUFFICIENT FOR PORTAL2 SPECIFIC CIRCUMSTANCES
+			// AND MAY OR MAY NOT FUNCTION AS EXPECTED WHEN USED WITH MULTIPLE
+			// SPLITSCREEN CLIENTS NETWORKED TOGETHER, ETC.
+			filterCopy.ReplaceSplitScreenPlayersWithOwners();
+		}
+#endif
+
+		int guid = enginesound->EmitSound(
 			filter, 
 			entindex, 
 			params.channel, 
@@ -693,6 +808,7 @@ public:
 		{
 			EmitCloseCaption( filter, entindex, params, ep );
 		}
+		return guid;
 	}
 
 	void EmitSound( IRecipientFilter& filter, int entindex, const EmitSound_t & ep )

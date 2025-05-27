@@ -61,6 +61,9 @@ public:
 	void			AddPlayersFromBitMask( CPlayerBitVec& playerbits );
 
 	void			RemoveSplitScreenPlayers();
+	void			ReplaceSplitScreenPlayersWithOwners();
+
+	void			RemoveDuplicateRecipients();
 
 private:
 
