@@ -5,6 +5,7 @@ $Group "game"
 	"missionchooser"
 	"matchmaking"
 	"matchmaking_ds"
+	"tier1"
 }
 
 $Group "shaders"
@@ -18,6 +19,7 @@ $Group "everything"
 {
 	"client"
 	"server"
+	"tier1"
 	"missionchooser"
 	"shaderlib"
 	"portal_shader"

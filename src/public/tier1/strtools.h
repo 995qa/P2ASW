@@ -9,7 +9,9 @@
 #ifndef TIER1_STRTOOLS_H
 #define TIER1_STRTOOLS_H
 
+#include <ctype.h>
 #include "tier0/basetypes.h"
+#include "tier0/annotations.h"
 
 #ifdef _WIN32
 #pragma once
@@ -143,6 +145,14 @@ inline bool	StringHasPrefixCaseSensitive( const char *str, const char *prefix ) 
 // (removes leading zeros, trailing zeros after the decimal point, and the decimal point itself where possible)
 void			V_normalizeFloatString( char* pFloat );
 
+// reactivedrop
+// this is locale-unaware and therefore faster version of standard isdigit()
+// It also avoids sign-extension errors.
+inline bool V_isdigit(char c)
+{
+	return c >= '0' && c <= '9';
+}
+
 inline bool V_isspace(int c)
 {
 	// The standard white-space characters are the following: space, tab, carriage-return, newline, vertical tab, and form-feed. In the C locale, V_isspace() returns true only for the standard white-space characters. 
@@ -183,6 +193,10 @@ void V_strncpy( char *pDest, const char *pSrc, int maxLen );
 int V_snprintf( char *pDest, int destLen, const char *pFormat, ... ) FMTFUNCTION( 3, 4 );
 void V_wcsncpy( wchar_t *pDest, wchar_t const *pSrc, int maxLenInBytes );
 int V_snwprintf( wchar_t *pDest, int destLen, const wchar_t *pFormat, ... );
+
+// for 2013 compat (yes in p2)
+//#define isalpha use_V_isalpha_instead_of_isalpha
+inline bool V_isalnum(char c) { return isalnum((unsigned char)c) != 0; }
 
 #define COPY_ALL_CHARACTERS -1
 char *V_strncat(char *, const char *, size_t destBufferSize, int max_chars_to_copy=COPY_ALL_CHARACTERS );
@@ -230,6 +244,14 @@ char *V_pretifymem( float value, int digitsafterdecimal = 2, bool usebinaryonek 
 
 // Prints out a pretified integer with comma separators (eg, 7,233,270,000)
 char *V_pretifynum( int64 value );
+
+// helper to identify "mean" spaces, which we don't like in visible identifiers
+// such as player Name
+bool V_IsMeanSpaceW( wchar_t wch );
+
+// strips leading and trailing whitespace, also taking "aggressive" characters 
+// like punctuation spaces, non-breaking spaces, composing characters, and so on
+bool V_RemoveAllEvilCharacters( char *pch );
 
 // conversion functions wchar_t <-> char, returning the number of characters converted
 int V_UTF8ToUnicode( const char *pUTF8, wchar_t *pwchDest, int cubDestSizeInBytes );
@@ -526,6 +548,8 @@ inline BinString_t<T> MakeBinString( const T& that )
 #define Q_vsnprintf				V_vsnprintf
 #define Q_pretifymem			V_pretifymem
 #define Q_pretifynum			V_pretifynum
+#define Q_IsMeanSpaceW			V_IsMeanSpaceW
+#define Q_RemoveAllEvilCharacters	V_RemoveAllEvilCharacters
 #define Q_UTF8ToUnicode			V_UTF8ToUnicode
 #define Q_UnicodeToUTF8			V_UnicodeToUTF8
 #define Q_hextobinary			V_hextobinary
