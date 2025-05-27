@@ -19,8 +19,6 @@
 
 #define MAX_PORTAL_RECURSIVE_VIEWS 11 //maximum number of recursions we allow when drawing views through portals. Seeing as how 5 is extremely choppy under best conditions and is barely visible, 10 is a safe limit. Adding one because 0 tends to be the primary view in most arrays of this size
 
-//#define USE_VISDATA
-
 class C_Prop_Portal;
 
 class CPortalRenderable
@@ -275,9 +273,7 @@ private:
 	// Data that's only valid while inside DrawPortalsUsingStencil()
 	CUtlStack<int>				m_stencilValueStack;
 	CUtlStack<int>				m_parentPortalIdStack;
-#ifdef USE_VISDATA
 	ICachedPerFrameMeshData		*m_pCachedPortalQuadMeshData;
-#endif
 	VertexFormat_t				m_portalQuadMeshVertexFmt;
 	CUtlVector< ClampedPortalMeshRenderInfo_t > m_clampedPortalMeshRenderInfos;
 	CUtlVector< bool >			m_portalIsOpening;
