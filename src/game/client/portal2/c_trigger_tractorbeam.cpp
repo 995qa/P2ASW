@@ -242,6 +242,7 @@ void C_Trigger_TractorBeam::DrawColumn( IMaterial *pMaterial, Vector &vecStart, 
 	Vector &vecXAxis, Vector &vecYAxis, float flRadius, float flAlpha, bool bPinchIn, bool bPinchOut, float flTextureOffset )
 {
 	CMatRenderContextPtr pRenderContext( materials );
+	pRenderContext->Bind( pMaterial, GetClientRenderable() );
 	IMesh* pMesh = pRenderContext->GetDynamicMesh( false, NULL, NULL, pMaterial );
 
 	CMeshBuilder meshBuilder;
