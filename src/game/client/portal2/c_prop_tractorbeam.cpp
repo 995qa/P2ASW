@@ -90,12 +90,10 @@ protected:
 IMPLEMENT_CLIENTCLASS_DT( C_PropTractorBeamProjector, DT_PropTractorBeamProjector, CPropTractorBeamProjector )
 
 	RecvPropFloat( RECVINFO( m_flLinearForce ), 0, &C_PropTractorBeamProjector::RecvProxy_LinearForce ),
-	RecvPropBool( RECVINFO( m_bNoEmitterParticles ) ),
-	//RecvPropBool( RECVINFO( m_bNoEmitterParticles ), 0, &C_PropTractorBeamProjector::RecvProxy_Enabled ),
-	
-	//RecvPropBool( RECVINFO( bDisableAutoReprojection ) ),
 
 	RecvPropVector( RECVINFO( m_vEndPos ) ),
+	RecvPropInt( RECVINFO( m_bEnabled ), 0, &C_PropTractorBeamProjector::RecvProxy_Enabled ),
+	RecvPropBool( RECVINFO( m_bNoEmitterParticles ) ),
 
 END_RECV_TABLE()
 
@@ -140,6 +138,7 @@ void C_PropTractorBeamProjector::ClientThink( void )
 	
 	SetPoseParameter( GetModelPtr(), LookupPoseParameter( GetModelPtr(), "reversal" ), CalculateArmaturePose() );
 	m_flPlaybackRate = CalculateRotationPose();
+	StudioFrameAdvance();
 }
 
 float C_PropTractorBeamProjector::CalculateArmaturePose( void )
@@ -202,10 +201,10 @@ float C_PropTractorBeamProjector::CalculateRotationPose(void)
 			* 2.0)
 			* ((gpGlobals->curtime - m_flRotationStartTime)
 			/ (v5 - m_flRotationStartTime))))
-			* (m_flRotationTarget - flRotationGoal))
-			+ flRotationGoal;
+			* (m_flRotationTarget - m_flRotationStart))
+			+ m_flRotationStart;
 	}
-	float v7 = m_flLinearForce * 0.0083333338;
+	float v7 = m_flLinearForce / 120;
 
 	if (v7 != 0.0)
 	{
@@ -215,7 +214,7 @@ float C_PropTractorBeamProjector::CalculateRotationPose(void)
 		else
 			v8 = v7 <= flRotationGoal;
 		if (!v8)
-			return (m_flLinearForce * 0.0083333338);
+			return (m_flLinearForce / 120);
 	}
 	return flRotationGoal;
 }
@@ -331,9 +330,8 @@ void C_PropTractorBeamProjector::RecvProxy_Enabled( const CRecvProxyData *pData,
 	pTractorBeam->m_flRotationStart = pTractorBeam->CalculateRotationPose();
 	pTractorBeam->m_flRotationStartTime = gpGlobals->curtime;
 	pTractorBeam->m_flRotationDuration = 0.25;
-	pTractorBeam->m_flRotationTarget = pTractorBeam->m_flLinearForce * 0.0083333338;
+	pTractorBeam->m_flRotationTarget = pTractorBeam->m_flLinearForce / 120;
 	pTractorBeam->m_flArmatureStart = pTractorBeam->CalculateArmaturePose();
-	pTractorBeam->m_flArmatureTarget = pTractorBeam->m_flLinearForce <= 0.0 ? 0 : 1.0;
 	pTractorBeam->m_flArmatureDuration = 0.75;
 	pTractorBeam->m_flArmatureStartTime = gpGlobals->curtime;
 	if ( !pTractorBeam->m_bEffectsActive )
@@ -343,7 +341,7 @@ void C_PropTractorBeamProjector::RecvProxy_Enabled( const CRecvProxyData *pData,
 			return;
 		goto LABEL_11;
 	}
-	if (pTractorBeam->m_bActivated)
+	if (pTractorBeam->m_bEnabled)
 	{
 		pTractorBeam->CreateEffect();
 		goto LABEL_10;
@@ -370,14 +368,14 @@ void C_PropTractorBeamProjector::RecvProxy_LinearForce( const CRecvProxyData *pD
 	if (pTractorBeam->m_flLinearForce != flNewLinearForce)
 	{
 		pTractorBeam->m_flLinearForce = flNewLinearForce;
-		if ( pTractorBeam->m_bActivated )
+		if ( pTractorBeam->m_bEnabled )
 		{
 			pTractorBeam->m_flRotationStart = pTractorBeam->CalculateRotationPose();
 			pTractorBeam->m_flRotationStartTime = gpGlobals->curtime;
 			pTractorBeam->m_flRotationDuration = 0.25;
-			pTractorBeam->m_flRotationTarget = flNewLinearForce * 0.0083333338;
+			pTractorBeam->m_flRotationTarget = flNewLinearForce / 120;
 			pTractorBeam->m_flArmatureStart = pTractorBeam->CalculateArmaturePose();
-			pTractorBeam->m_flArmatureTarget = pTractorBeam->m_flLinearForce <= 0.0 ? 0 : 1.0;
+			pTractorBeam->m_flArmatureTarget = flNewLinearForce > 0.0 ? 1.0 : 0.0;
 			pTractorBeam->m_flArmatureDuration = 0.75;
 			pTractorBeam->m_flArmatureStartTime = gpGlobals->curtime;
 			pTractorBeam->UpdateEffect();
