@@ -311,52 +311,52 @@ void C_PropTractorBeamProjector::RecvProxy_Enabled( const CRecvProxyData *pData,
 	C_PropTractorBeamProjector *pTractorBeam = static_cast<C_PropTractorBeamProjector*>( pStruct );
 
 	bool bEnabled = pData->m_Value.m_Int == 1;
-	if (pTractorBeam->m_bEnabled == bEnabled)
-		goto LABEL_10;
-	pTractorBeam->m_bEnabled = pData->m_Value.m_Int == 1;
-	if (!bEnabled)
+	if (pTractorBeam->m_bEnabled != bEnabled)
+	{
+		pTractorBeam->m_bEnabled = bEnabled;
+		if (bEnabled)
+		{
+			pTractorBeam->m_flRotationStart = pTractorBeam->CalculateRotationPose();
+			pTractorBeam->m_flRotationDuration = 0.25;
+			pTractorBeam->m_flRotationTarget = pTractorBeam->m_flLinearForce / 120.0;
+			pTractorBeam->m_flRotationStartTime = gpGlobals->curtime;
+			pTractorBeam->m_flArmatureStart = pTractorBeam->CalculateArmaturePose();
+			bool bEffectsActive = !pTractorBeam->m_bEffectsActive;
+			pTractorBeam->m_flArmatureDuration = 0.75;
+			pTractorBeam->m_flArmatureTarget = pTractorBeam->m_flLinearForce <= 0.0 ? 0 : 1.0;
+			pTractorBeam->m_flArmatureStartTime = gpGlobals->curtime;
+			if ( !bEffectsActive )
+			{
+				if (!pTractorBeam->m_bActivated)
+					return;
+				pTractorBeam->CreateEffect();
+			}
+		}
+		else
+		{
+			pTractorBeam->m_flRotationStart = pTractorBeam->CalculateRotationPose();
+			pTractorBeam->m_flRotationDuration = 1.5;
+			pTractorBeam->m_flRotationTarget = 0.0;
+			pTractorBeam->m_flRotationStartTime = gpGlobals->curtime;
+			float flPose = pTractorBeam->CalculateArmaturePose();
+			pTractorBeam->m_flArmatureTarget = 0.5;
+			pTractorBeam->m_flArmatureStart = flPose;
+			pTractorBeam->m_flArmatureDuration = 1.5;
+			pTractorBeam->m_flArmatureStartTime = gpGlobals->curtime;
+			pTractorBeam->StopEffect();
+		}
+	}
+	if (!pTractorBeam->m_bActivated && !pTractorBeam->m_bEnabled)
 	{
 		pTractorBeam->m_flRotationStart = pTractorBeam->CalculateRotationPose();
-		pTractorBeam->m_flRotationStartTime = gpGlobals->curtime;
-		pTractorBeam->m_flRotationDuration = 1.5;
-		pTractorBeam->m_flRotationTarget = 0.0;
-		pTractorBeam->m_flArmatureStart = pTractorBeam->CalculateArmaturePose();
-		pTractorBeam->m_flArmatureTarget = 0.5;
-		pTractorBeam->m_flArmatureDuration = 1.5;
-		pTractorBeam->m_flArmatureStartTime = gpGlobals->curtime;
-		pTractorBeam->StopEffect();
-		goto LABEL_10;
-	}
-	pTractorBeam->m_flRotationStart = pTractorBeam->CalculateRotationPose();
-	pTractorBeam->m_flRotationStartTime = gpGlobals->curtime;
-	pTractorBeam->m_flRotationDuration = 0.25;
-	pTractorBeam->m_flRotationTarget = pTractorBeam->m_flLinearForce / 120;
-	pTractorBeam->m_flArmatureStart = pTractorBeam->CalculateArmaturePose();
-	pTractorBeam->m_flArmatureDuration = 0.75;
-	pTractorBeam->m_flArmatureStartTime = gpGlobals->curtime;
-	if ( !pTractorBeam->m_bEffectsActive )
-	{
-	LABEL_10:
-		if (pTractorBeam->m_bActivated)
-			return;
-		goto LABEL_11;
-	}
-	if (pTractorBeam->m_bEnabled)
-	{
-		pTractorBeam->CreateEffect();
-		goto LABEL_10;
-	}
-LABEL_11:
-	if (!pTractorBeam->m_bEnabled)
-	{
-		pTractorBeam->m_flRotationStart = pTractorBeam->CalculateRotationPose();
-		pTractorBeam->m_flRotationStartTime = (gpGlobals->curtime);
 		pTractorBeam->m_flRotationDuration = 0.0;
 		pTractorBeam->m_flRotationTarget = 0.0;
-		pTractorBeam->m_flArmatureStart = pTractorBeam->CalculateArmaturePose();
+		pTractorBeam->m_flRotationStartTime = gpGlobals->curtime;
+		float flPose = pTractorBeam->CalculateArmaturePose();
 		pTractorBeam->m_flArmatureTarget = 0.5;
+		pTractorBeam->m_flArmatureStart = flPose;
 		pTractorBeam->m_flArmatureDuration = 0.0;
-		pTractorBeam->m_flArmatureStartTime = (gpGlobals->curtime);
+		pTractorBeam->m_flArmatureStartTime = gpGlobals->curtime;
 	}
 }
 
