@@ -114,7 +114,9 @@ public:
 	Vector	GetForceDirection() const;
 	Vector	GetStartPoint( void ) const { return m_vStart; }
 	Vector	GetEndPoint( void ) const { return m_vEnd; }
-
+	
+	static void RecvProxy_Start( const CRecvProxyData *pData, void *pStruct, void *pOut );
+	static void RecvProxy_End( const CRecvProxyData *pData, void *pStruct, void *pOut );
 
 	//PaintBlobVector_t m_blobs;
 
