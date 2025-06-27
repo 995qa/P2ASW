@@ -40,23 +40,29 @@ void C_ProjectedTractorBeamEntity::GetProjectionExtents( Vector &outMins, Vector
 void C_ProjectedTractorBeamEntity::OnProjected( void )
 {
 	BaseClass::OnProjected();
-	if ( m_hTractorBeamTrigger )
+
+	C_Trigger_TractorBeam *pTrigger = m_hTractorBeamTrigger;
+	if ( pTrigger )
 	{
-		m_hTractorBeamTrigger->SetPredictionEligible( GetPredictionEligible() );
+		pTrigger->SetPredictionEligible( GetPredictionEligible() );
 
 		if ( IsPlayerSimulated() )
 		{
 			if ( GetSimulatingPlayer() )
-				m_hTractorBeamTrigger->SetPlayerSimulated( GetSimulatingPlayer() );
+				pTrigger->SetPlayerSimulated( GetSimulatingPlayer() );
 			else
-				m_hTractorBeamTrigger->SetPlayerSimulated( NULL );
+				pTrigger->SetPlayerSimulated( NULL );
 		}
 		else
 		{
-			m_hTractorBeamTrigger->UnsetPlayerSimulated();
+			pTrigger->UnsetPlayerSimulated();
 		}
 		
-		m_hTractorBeamTrigger->UpdateBeam( GetStartPoint(), GetEndPoint(), m_hTractorBeamTrigger->GetLinearForce() );
+		float flForce = pTrigger->GetLinearForce();
+		if ( pTrigger->IsReversed() )
+			flForce = -flForce;
+
+		pTrigger->UpdateBeam( GetStartPoint(), GetEndPoint(), flForce );
 	}
 }
 
