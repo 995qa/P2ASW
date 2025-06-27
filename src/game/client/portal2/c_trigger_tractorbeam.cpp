@@ -576,12 +576,11 @@ void C_Trigger_TractorBeam::RestoreToToolRecordedState( KeyValues *pKV )
 	m_pMaterial3 = materials->FindMaterial("effects/tractor_beam3", 0, 0, 0);
 }
 
-// NOTE: This was copied from CPSCollisionEntity::UpdatePartitionListEntry, but this should work.
 void C_Trigger_TractorBeam::UpdatePartitionListEntry()
 {
 	partition->RemoveAndInsert( 
-		PARTITION_CLIENT_RESPONSIVE_EDICTS | PARTITION_CLIENT_NON_STATIC_EDICTS | PARTITION_CLIENT_TRIGGER_ENTITIES | PARTITION_CLIENT_IK_ATTACHMENT,  // remove
-		PARTITION_CLIENT_SOLID_EDICTS | PARTITION_CLIENT_STATIC_PROPS,  // add
+		PARTITION_CLIENT_RESPONSIVE_EDICTS | PARTITION_CLIENT_NON_STATIC_EDICTS | PARTITION_CLIENT_SOLID_EDICTS,  // remove
+		PARTITION_CLIENT_TRIGGER_ENTITIES,  // add
 		CollisionProp()->GetPartitionHandle() );
 }
 
