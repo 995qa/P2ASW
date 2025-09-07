@@ -216,6 +216,44 @@ void C_RecipientFilter::RemoveSplitScreenPlayers()
 	}
 }
 
+// THIS FUNCTION IS SUFFICIENT FOR PORTAL2 SPECIFIC CIRCUMSTANCES
+// AND MAY OR MAY NOT FUNCTION AS EXPECTED WHEN USED WITH MULTIPLE
+// SPLITSCREEN CLIENTS NETWORKED TOGETHER, ETC.
+void C_RecipientFilter::ReplaceSplitScreenPlayersWithOwners()
+{
+	// coop
+	if( gpGlobals->maxClients >= 2 && C_BasePlayer::HasAnyLocalPlayer() ) 
+	{
+		bool addedHostPlayer = false;
+		const int count = m_Recipients.Count();
+		for( int i = 0; i < count; ++i )
+		{
+			// If this is a split screen player
+			CBasePlayer* pPlayer = UTIL_PlayerByIndex( m_Recipients[i] );
+			if( pPlayer && pPlayer->IsSplitScreenPlayer() )
+			{
+				// Add the host player, if it exists, to the filter
+				C_BasePlayer* pHostPlayer = C_BasePlayer::GetLocalPlayer( 0 );
+				if( pHostPlayer )
+				{
+					m_Recipients.AddToTail( pHostPlayer->entindex() );
+					addedHostPlayer = true;
+				}
+				break;
+			}
+		}
+
+		if( addedHostPlayer )
+		{
+			// Remove all split screen players
+			RemoveSplitScreenPlayers();
+
+			// Remove duplicates
+			RemoveDuplicateRecipients();
+		}
+	}
+}
+
 bool C_RecipientFilter::IsUsingPredictionRules( void ) const
 {
 	return m_bUsingPredictionRules;
@@ -231,6 +269,18 @@ void C_RecipientFilter::SetIgnorePredictionCull( bool ignore )
 	m_bIgnorePredictionCull = ignore;
 }
 
+void C_RecipientFilter::RemoveDuplicateRecipients()
+{
+	for( int i = 0; i < m_Recipients.Count(); ++i )
+	{
+		int currentElem = m_Recipients[i];
+		for( int j = m_Recipients.Count() - 1; j > i ; --j )
+		{
+			if( m_Recipients[j] == currentElem )
+				m_Recipients.FastRemove( j );
+		}
+	}
+}
 
 CLocalPlayerFilter::CLocalPlayerFilter()
 {

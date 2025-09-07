@@ -339,6 +339,8 @@ CSoundParametersInternal::CSoundParametersInternal()
 	play_to_owner_only = false;
 	had_missing_wave_files = false;
 	uses_gender_token = false;
+	
+	m_pOperatorsKV = NULL;
 
 	// TERROR:
 	m_pGameData = NULL;
@@ -368,6 +370,18 @@ CSoundParametersInternal::~CSoundParametersInternal()
 	m_pSoundNames = NULL;
 	m_nSoundNames = 0;
 	m_nConvertedNames = 0;
+}
+
+void CSoundParametersInternal::SetOperatorsKV( KeyValues *src )
+{
+	if ( m_pOperatorsKV )
+	{
+		m_pOperatorsKV->deleteThis();
+	}
+	m_pOperatorsKV = NULL;
+
+	m_pOperatorsKV = new KeyValues( "Operators" );
+	src->CopySubkeys( m_pOperatorsKV );
 }
 
 void CSoundParametersInternal::CopyFrom( const CSoundParametersInternal& src )
@@ -418,6 +432,11 @@ void CSoundParametersInternal::CopyFrom( const CSoundParametersInternal& src )
 	else
 	{
 		m_pConvertedNames = NULL;
+	}
+	
+	if ( src.m_pOperatorsKV )
+	{
+		SetOperatorsKV( src.m_pOperatorsKV );
 	}
 
 	had_missing_wave_files = src.had_missing_wave_files;

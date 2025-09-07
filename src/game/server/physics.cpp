@@ -2732,7 +2732,7 @@ void PhysCollisionDust(gamevcollisionevent_t *pEvent, surfacedata_t *phit)
 
 }
 
-void PhysFrictionSound(CBaseEntity *pEntity, IPhysicsObject *pObject, const char *pSoundName, HSOUNDSCRIPTHANDLE& handle, float flVolume)
+void PhysFrictionSound(CBaseEntity *pEntity, IPhysicsObject *pObject, const char *pSoundName, HSOUNDSCRIPTHASH& handle, float flVolume)
 {
 	if (!pEntity)
 		return;

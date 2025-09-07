@@ -59,23 +59,6 @@ bool CGameUiAvatarImage::SetAvatarXUID( XUID xuid, AvatarSize_t nSize /*= MEDIUM
 	{
 		m_nAvatarSize = nSize;
 		int iAvatar;
-#ifdef P2ASW
-		if ( nSize == SMALL )
-		{
-			iAvatar = steamapicontext->SteamFriends()->GetFriendAvatar( xuid, k_EAvatarSize32x32 );
-		}
-		else if ( nSize == MEDIUM )
-		{
-			iAvatar = steamapicontext->SteamFriends()->GetFriendAvatar( xuid, k_EAvatarSize64x64 );
-		}
-		else // nSize == LARGE
-		{
-			// Swarm doesn't have the large size available
-			// Use the 64 size, but print a developer message so modders know
-			DevWarning("Tried to use a large player avatar. This is not available in P2ASW.");
-			iAvatar = steamapicontext->SteamFriends()->GetFriendAvatar( xuid, k_EAvatarSize64x64 );
-		}
-#else
 		if ( nSize == SMALL )
 		{
 			iAvatar = steamapicontext->SteamFriends()->GetSmallFriendAvatar( xuid );
@@ -88,7 +71,6 @@ bool CGameUiAvatarImage::SetAvatarXUID( XUID xuid, AvatarSize_t nSize /*= MEDIUM
 		{
 			iAvatar = steamapicontext->SteamFriends()->GetLargeFriendAvatar( xuid );
 		}
-#endif
 
 		/*
 		// See if it's in our list already

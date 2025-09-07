@@ -1,6 +1,6 @@
 #include "cbase.h"
 #include "projectedwallentity.h"
-#include "paint/paint_database.h"
+#include "paint_database.h"
 #include "vcollide_parse.h"
 #include "portal_player.h"
 #include "physicsshadowclone.h"

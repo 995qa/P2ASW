@@ -593,6 +593,7 @@ public:
 	// save out interpolated values
 	virtual void					PreDataUpdate( DataUpdateType_t updateType );
 	virtual void					PostDataUpdate( DataUpdateType_t updateType );
+	virtual void					OnDataUnchangedInPVS();
 
 	virtual void					ValidateModelIndex( void );
 
@@ -854,31 +855,31 @@ public:
 
 	// See CSoundEmitterSystem
 	void	EmitSound( const char *soundname, float soundtime = 0.0f, float *duration = NULL );  // Override for doing the general case of CPASAttenuationFilter( this ), and EmitSound( filter, entindex(), etc. );
-	void	EmitSound( const char *soundname, HSOUNDSCRIPTHANDLE& handle, float soundtime = 0.0f, float *duration = NULL );  // Override for doing the general case of CPASAttenuationFilter( this ), and EmitSound( filter, entindex(), etc. );
+	void	EmitSound( const char *soundname, HSOUNDSCRIPTHASH& handle, float soundtime = 0.0f, float *duration = NULL );  // Override for doing the general case of CPASAttenuationFilter( this ), and EmitSound( filter, entindex(), etc. );
 	void	StopSound( const char *soundname );
-	void	StopSound( const char *soundname, HSOUNDSCRIPTHANDLE& handle );
+	void	StopSound( const char *soundname, HSOUNDSCRIPTHASH& handle );
 	void	GenderExpandString( char const *in, char *out, int maxlen );
 
 	static float GetSoundDuration( const char *soundname, char const *actormodel );
 
 	static bool	GetParametersForSound( const char *soundname, CSoundParameters &params, const char *actormodel );
-	static bool	GetParametersForSound( const char *soundname, HSOUNDSCRIPTHANDLE& handle, CSoundParameters &params, const char *actormodel );
+	static bool	GetParametersForSound( const char *soundname, HSOUNDSCRIPTHASH& handle, CSoundParameters &params, const char *actormodel );
 
 	static void EmitSound( IRecipientFilter& filter, int iEntIndex, const char *soundname, const Vector *pOrigin = NULL, float soundtime = 0.0f, float *duration = NULL );
-	static void EmitSound( IRecipientFilter& filter, int iEntIndex, const char *soundname, HSOUNDSCRIPTHANDLE& handle, const Vector *pOrigin = NULL, float soundtime = 0.0f, float *duration = NULL );
+	static void EmitSound( IRecipientFilter& filter, int iEntIndex, const char *soundname, HSOUNDSCRIPTHASH& handle, const Vector *pOrigin = NULL, float soundtime = 0.0f, float *duration = NULL );
 	static void StopSound( int iEntIndex, const char *soundname );
 	static soundlevel_t LookupSoundLevel( const char *soundname );
-	static soundlevel_t LookupSoundLevel( const char *soundname, HSOUNDSCRIPTHANDLE& handle );
+	static soundlevel_t LookupSoundLevel( const char *soundname, HSOUNDSCRIPTHASH& handle );
 
 	static void EmitSound( IRecipientFilter& filter, int iEntIndex, const EmitSound_t & params );
-	static void EmitSound( IRecipientFilter& filter, int iEntIndex, const EmitSound_t & params, HSOUNDSCRIPTHANDLE& handle );
+	static void EmitSound( IRecipientFilter& filter, int iEntIndex, const EmitSound_t & params, HSOUNDSCRIPTHASH& handle );
 
 	static void StopSound( int iEntIndex, int iChannel, const char *pSample, bool bIsStoppingSpeakerSound = false );
 
 	static void EmitAmbientSound( int entindex, const Vector& origin, const char *soundname, int flags = 0, float soundtime = 0.0f, float *duration = NULL );
 
 	// These files need to be listed in scripts/game_sounds_manifest.txt
-	static HSOUNDSCRIPTHANDLE PrecacheScriptSound( const char *soundname );
+	static HSOUNDSCRIPTHASH PrecacheScriptSound( const char *soundname );
 	static void PrefetchScriptSound( const char *soundname );
 
 	// For each client who appears to be a valid recipient, checks the client has disabled CC and if so, removes them from 
@@ -1096,6 +1097,7 @@ public:
 	void							DestroyIntermediateData( void );
 	void							ShiftIntermediateDataForward( int slots_to_remove, int previous_last_slot );
 	void							ShiftFirstPredictedIntermediateDataForward( int slots_to_remove );
+	void							ShiftIntermediateData_TickAdjust( int delta, int last_slot );
 
 	void							*GetPredictedFrame( int framenumber );
 	void							*GetFirstPredictedFrame( int framenumber ); //similar to GetPredictedFrame() but only stores the results from the first prediction of each command
@@ -1112,6 +1114,8 @@ public:
 	void							PostEntityPacketReceived( void );
 	bool							PostNetworkDataReceived( int commands_acknowledged );
 	virtual void					HandlePredictionError( bool bErrorInThisEntity ); //we just processed a network update with errors, bErrorInThisEntity is false if the prediction errors were entirely in other entities and not this one
+	virtual bool					PredictionErrorShouldResetLatchedForAllPredictables( void ) { return true; } //legacy behavior is that any prediction error causes all predictables to reset latched
+	virtual bool					PredictionIsPhysicallySimulated( void ) { return false; } //by default, all prediction is driven by player commands, return true if your prediction is based on server simulation ticks
 	bool							GetPredictionEligible( void ) const;
 	void							SetPredictionEligible( bool canpredict );
 
@@ -1956,11 +1960,21 @@ private:
 	// Shadow data
 	ClientShadowHandle_t			m_ShadowHandle;
 	CBitVec< MAX_SPLITSCREEN_PLAYERS > m_ShadowBits; // Per-splitscreen user shadow visibility bits
+protected:
+	// NOTE: This is a hack for portal2.  There is a piece of networking code in OnDataChangedInPVS() that slams m_flSimulationTime
+	// this causes interpolation bugs on remote players in p2
+	bool							m_bDisableSimulationFix;
 
 	// Fades
 	float							m_fadeMinDist;
 	float							m_fadeMaxDist;
 	float							m_flFadeScale;
+
+public:
+
+	void							OnSimulationTimeChanging( float flPreviousSimulationTime, float flNextSimulationTime );
+
+private:
 
 	ClientThinkHandle_t				m_hThink;
 

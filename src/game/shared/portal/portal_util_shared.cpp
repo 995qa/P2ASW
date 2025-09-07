@@ -141,7 +141,8 @@ public:
 	virtual int				GetSolidFlags() const { return m_pWrappedCollideable->GetSolidFlags(); };
 	virtual IClientUnknown*	GetIClientUnknown() { return m_pWrappedCollideable->GetIClientUnknown(); };
 	virtual int				GetCollisionGroup() const { return m_pWrappedCollideable->GetCollisionGroup(); };
-	virtual bool			ShouldTouchTrigger( int triggerSolidFlags ) const { return m_pWrappedCollideable->ShouldTouchTrigger(triggerSolidFlags); };
+	virtual uint			GetRequiredTriggerFlags() const { return m_pWrappedCollideable->GetRequiredTriggerFlags(); }
+	virtual IPhysicsObject	*GetVPhysicsObject() const { return m_pWrappedCollideable->GetVPhysicsObject(); }
 
 	//slightly trickier functions
 	virtual void			WorldSpaceTriggerBounds( Vector *pVecWorldMins, Vector *pVecWorldMaxs ) const;
@@ -687,10 +688,9 @@ void UTIL_Portal_TraceRay( const CPortal_Base2D *pPortal, const Ray_t &ray, unsi
 			for( int iBrushSet = 0; iBrushSet != ARRAYSIZE( portalSimulatorData.Simulation.Static.World.Brushes.BrushSets ); ++iBrushSet )
 			{
 				const PS_SD_Static_BrushSet_t *pBrushSet = &portalSimulatorData.Simulation.Static.World.Brushes.BrushSets[iBrushSet];
-				if( ((pBrushSet->iSolidMask & fMask) != 0) && pBrushSet->pCollideable )
+				if( ((pBrushSet->iSolidMask & fMask) != 0) && pBrushSet->pCollideable && 
+					physcollision->TraceBoxAA( queryRay, pBrushSet->pCollideable, &TempTrace ) )
 				{
-					physcollision->TraceBox( queryRay, pBrushSet->pCollideable, vec3_origin, vec3_angle, &TempTrace );
-
 					bCopyBackBrushTraceData = true;
 
 					bool bIsCloser = (portal_trace_shrink_ray_each_query.GetBool() ) ? (TempTrace.DidHit()) : (TempTrace.fraction < pTrace->fraction);
@@ -731,9 +731,9 @@ void UTIL_Portal_TraceRay( const CPortal_Base2D *pPortal, const Ray_t &ray, unsi
 					const PS_SD_Static_World_StaticProps_ClippedProp_t *pStop = pCurrentProp + iLocalStaticCount;
 					do
 					{
-						if( ( !bFilterStaticProps || pTraceFilter->ShouldHitEntity( pCurrentProp->pSourceProp, fMask ) ) )
+						if( ( !bFilterStaticProps || pTraceFilter->ShouldHitEntity( pCurrentProp->pSourceProp, fMask ) ) && 
+							physcollision->TraceBoxAA( queryRay, pCurrentProp->pCollide, &TempTrace ) )
 						{
-							physcollision->TraceBox( queryRay, pCurrentProp->pCollide, vec3_origin, vec3_angle, &TempTrace );
 #if defined ( PORTAL_TRACE_LOGGING )
 							s_TraceLogger.LogTrace( STATIC_PROPS );
 #endif
@@ -841,9 +841,9 @@ void UTIL_Portal_TraceRay( const CPortal_Base2D *pPortal, const Ray_t &ray, unsi
 			for( int iBrushSet = 0; iBrushSet != ARRAYSIZE( portalSimulatorData.Simulation.Static.Wall.Local.Brushes.BrushSets ); ++iBrushSet )
 			{
 				const PS_SD_Static_BrushSet_t *pBrushSet = &portalSimulatorData.Simulation.Static.Wall.Local.Brushes.BrushSets[iBrushSet];
-				if( ((pBrushSet->iSolidMask & fMask) != 0) && pBrushSet->pCollideable )
+				if( ((pBrushSet->iSolidMask & fMask) != 0) && pBrushSet->pCollideable && 
+					physcollision->TraceBoxAA( queryRay, pBrushSet->pCollideable, &TempTrace ) )
 				{
-					physcollision->TraceBox( queryRay, pBrushSet->pCollideable, vec3_origin, vec3_angle, &TempTrace );
 #if defined ( PORTAL_TRACE_LOGGING )
 					s_TraceLogger.LogTrace( HOLYWALL_BRUSHES );
 #endif
@@ -866,7 +866,7 @@ void UTIL_Portal_TraceRay( const CPortal_Base2D *pPortal, const Ray_t &ray, unsi
 
 			if( portalSimulatorData.Simulation.Static.Wall.Local.Tube.pCollideable )
 			{
-				physcollision->TraceBox( queryRay, portalSimulatorData.Simulation.Static.Wall.Local.Tube.pCollideable, vec3_origin, vec3_angle, &TempTrace );
+				physcollision->TraceBoxAA( queryRay, portalSimulatorData.Simulation.Static.Wall.Local.Tube.pCollideable, &TempTrace );
 
 #if defined ( PORTAL_TRACE_LOGGING )
 				s_TraceLogger.LogTrace( HOLYWALL_TUBE );
@@ -2871,49 +2871,12 @@ float UTIL_PaintBrushEntity( CBaseEntity* pBrushEntity, const Vector& contactPoi
 
 	Vector vEntitySpaceContactPoint;
 	pBrushEntity->WorldToEntitySpace( contactPoint, &vEntitySpaceContactPoint );
-	
-	Color color = MapPowerToColor( power );
 
-	engine->PaintSurface( pBrushEntity->GetModel(), vEntitySpaceContactPoint, color, flPaintRadius );
-
+	if ( !engine->SpherePaintSurface( pBrushEntity->GetModel(), vEntitySpaceContactPoint, power, flPaintRadius, flAlphaPercent ) )
+		return 0.0f;
 	return flPaintRadius;
 }
 
-
-Color GetAveragePaintColorFromVector( CUtlVector<Color> &colors )
-{
-	if ( colors.Count() == 0 )
-		return Color( 0, 0, 0, 0 );
-
-	int r = 0;
-	int g = 0;
-	int b = 0;
-	int a = 0;
-	
-	// We really need to get these power colors
-	for (int i = 0; i < colors.Count(); ++i)
-	{
-		Color color = colors.Element(i);
-		// Add up all values
-		r += color.r();
-		g += color.g();
-		b += color.b();
-		a += color.a();
-		
-	}
-
-	// Get the average
-	r = r / colors.Count();
-	g = g / colors.Count();
-	b = b / colors.Count();
-	a = a / colors.Count();
-	
-	Assert( r >= 0 && r <= 255 );
-	Assert( b >= 0 && b <= 255 );
-	Assert( g >= 0 && g <= 255 );
-	Assert( a >= 0 && a <= 255 );
-	return Color( r, g, b, a );
-}
 
 PaintPowerType UTIL_Paint_TracePower( CBaseEntity* pBrushEntity, const Vector& contactPoint, const Vector& vContactNormal )
 {
@@ -2922,23 +2885,26 @@ PaintPowerType UTIL_Paint_TracePower( CBaseEntity* pBrushEntity, const Vector& c
 		return NO_POWER;
 	}
 
-	CUtlVector<Color> color;
+	CUtlVector<BYTE> color;
 
 	// Transform contact point from world to entity space
 	Vector vEntitySpaceContactPoint;
 	pBrushEntity->WorldToEntitySpace( contactPoint, &vEntitySpaceContactPoint );
-	
-	engine->TracePaintSurface( pBrushEntity->GetModel(), vEntitySpaceContactPoint, sv_paint_detection_sphere_radius.GetFloat(), color );
 
-	return MapColorToPower( GetAveragePaintColorFromVector( color ) );
+	// transform contact normal
+	Vector vTransformedContactNormal;
+	VectorRotate( vContactNormal, -pBrushEntity->GetAbsAngles(), vTransformedContactNormal );
 
+	engine->SphereTracePaintSurface( pBrushEntity->GetModel(), vEntitySpaceContactPoint, vTransformedContactNormal, sv_paint_detection_sphere_radius.GetFloat(), color );
+
+	return MapColorToPower( color );
 }
 
 
 bool UTIL_Paint_Reflect( const trace_t& tr, Vector& vStart, Vector& vDir, PaintPowerType reflectPower /* = REFLECT_POWER */ )
 {
 	// check for reflect paint
-	if ( HASPAINTMAP && tr.m_pEnt && tr.m_pEnt->IsBSPModel() )
+	if ( engine->HasPaintmap() && tr.m_pEnt && tr.m_pEnt->IsBSPModel() )
 	{
 		PaintPowerType power = UTIL_Paint_TracePower( tr.m_pEnt, tr.endpos, tr.plane.normal );
 		if ( power == reflectPower )
@@ -3117,7 +3083,7 @@ void UTIL_Portal_TraceRay_PreTraceChanges( const CPortal_Base2D *pPortal, const 
 				if( ((portalSimulator.GetInternalData().Simulation.Static.World.Brushes.BrushSets[iBrushSet].iSolidMask & fMask) != 0) &&
 					portalSimulator.GetInternalData().Simulation.Static.World.Brushes.BrushSets[iBrushSet].pCollideable )
 				{
-					physcollision->TraceBox( ray, portalSimulator.GetInternalData().Simulation.Static.World.Brushes.BrushSets[iBrushSet].pCollideable, vec3_origin, vec3_angle, &TempTrace );
+					physcollision->TraceBoxAA( ray, portalSimulator.GetInternalData().Simulation.Static.World.Brushes.BrushSets[iBrushSet].pCollideable, &TempTrace );
 					if( (TempTrace.startsolid == false) && (TempTrace.fraction < pTrace->fraction) ) //never allow something to be stuck in the tube, it's more of a last-resort guide than a real collideable
 					{
 						*pTrace = TempTrace;
@@ -3129,7 +3095,7 @@ void UTIL_Portal_TraceRay_PreTraceChanges( const CPortal_Base2D *pPortal, const 
 
 		if( portalSimulator.GetInternalData().Simulation.Static.World.Displacements.pCollideable && sv_portal_trace_vs_world.GetBool() && portal_clone_displacements.GetBool() )
 		{
-			physcollision->TraceBox( ray, portalSimulator.GetInternalData().Simulation.Static.World.Displacements.pCollideable, vec3_origin, vec3_angle, &TempTrace );
+			physcollision->TraceBoxAA( ray, portalSimulator.GetInternalData().Simulation.Static.World.Displacements.pCollideable, &TempTrace );
 			if( (TempTrace.startsolid == false) && (TempTrace.fraction < pTrace->fraction) ) //never allow something to be stuck in the tube, it's more of a last-resort guide than a real collideable
 			{
 				*pTrace = TempTrace;
@@ -3141,7 +3107,7 @@ void UTIL_Portal_TraceRay_PreTraceChanges( const CPortal_Base2D *pPortal, const 
 		{
 			if( portalSimulator.GetInternalData().Simulation.Static.Wall.Local.Tube.pCollideable )
 			{
-				physcollision->TraceBox( ray, portalSimulator.GetInternalData().Simulation.Static.Wall.Local.Tube.pCollideable, vec3_origin, vec3_angle, &TempTrace );
+				physcollision->TraceBoxAA( ray, portalSimulator.GetInternalData().Simulation.Static.Wall.Local.Tube.pCollideable, &TempTrace );
 
 				if( (TempTrace.startsolid == false) && (TempTrace.fraction < pTrace->fraction) ) //never allow something to be stuck in the tube, it's more of a last-resort guide than a real collideable
 				{
@@ -3155,7 +3121,7 @@ void UTIL_Portal_TraceRay_PreTraceChanges( const CPortal_Base2D *pPortal, const 
 				if( ((portalSimulator.GetInternalData().Simulation.Static.Wall.Local.Brushes.BrushSets[iBrushSet].iSolidMask & fMask) != 0) &&
 					portalSimulator.GetInternalData().Simulation.Static.Wall.Local.Brushes.BrushSets[iBrushSet].pCollideable )
 				{
-					physcollision->TraceBox( ray, portalSimulator.GetInternalData().Simulation.Static.Wall.Local.Brushes.BrushSets[iBrushSet].pCollideable, vec3_origin, vec3_angle, &TempTrace );
+					physcollision->TraceBoxAA( ray, portalSimulator.GetInternalData().Simulation.Static.Wall.Local.Brushes.BrushSets[iBrushSet].pCollideable, &TempTrace );
 					if( (TempTrace.fraction < pTrace->fraction) )
 					{
 						*pTrace = TempTrace;

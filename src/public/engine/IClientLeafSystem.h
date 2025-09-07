@@ -46,6 +46,7 @@ public:
 	virtual void RemoveRenderable( ClientRenderHandle_t handle ) = 0;
 	virtual void AddRenderableToLeaves( ClientRenderHandle_t renderable, int nLeafCount, unsigned short *pLeaves ) = 0;
 	virtual void SetTranslucencyType( ClientRenderHandle_t handle, RenderableTranslucencyType_t nType ) = 0;
+	virtual void RenderInFastReflections( ClientRenderHandle_t handle, bool bRenderInFastReflections ) = 0;
 };
 
 

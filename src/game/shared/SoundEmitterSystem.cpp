@@ -35,10 +35,31 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+BEGIN_DEFINE_LOGGING_CHANNEL( LOG_SND_EMITTERSYSTEM, "SndEmitterSystem", LCF_CONSOLE_ONLY, LS_MESSAGE );
+ADD_LOGGING_CHANNEL_TAG( "SndEmitterSystem" );
+
+END_DEFINE_LOGGING_CHANNEL();
+
+
+ConVar sv_soundemitter_version( "sv_soundemitter_version", "2", FCVAR_REPLICATED | FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY, "specfies what version of soundemitter system to use\n" );
+
+#ifdef PORTAL2
+// THIS FUNCTION IS SUFFICIENT FOR PORTAL2 SPECIFIC CIRCUMSTANCES
+// AND MAY OR MAY NOT FUNCTION AS EXPECTED WHEN USED WITH MULTIPLE
+// SPLITSCREEN CLIENTS NETWORKED TOGETHER, ETC.
+ConVar snd_prevent_ss_duplicates( "snd_prevent_ss_duplicates", "1", FCVAR_REPLICATED | FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY, "switch to en/disable the prevention of splitscreen audio file duplicates\n" );
+#else
+ConVar snd_prevent_ss_duplicates( "snd_prevent_ss_duplicates", "0", FCVAR_REPLICATED | FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY, "switch to en/disable the prevention of splitscreen audio file duplicates\n" );
+#endif
+
+#if defined( CLIENT_DLL )
+ConVar snd_sos_show_client_xmit( "snd_sos_show_client_xmit", "0", FCVAR_CHEAT );
+#else
+ConVar snd_sos_show_server_xmit( "snd_sos_show_server_xmit", "0", FCVAR_CHEAT );
+#endif
+
 ConVar sv_soundemitter_trace( "sv_soundemitter_trace", "-1", FCVAR_REPLICATED, "Show all EmitSound calls including their symbolic name and the actual wave file they resolved to. (-1 = for nobody, 0 = for everybody, n = for one entity)\n" );
 ConVar cc_showmissing( "cc_showmissing", "0", FCVAR_REPLICATED, "Show missing closecaption entries." );
-
-ConVar sv_soundemitter_pause_all("sv_soundemitter_pause_all", "1", FCVAR_REPLICATED, "Set all sounds to pause when the game pauses. Only applies to new sounds that play.");
 
 extern ISoundEmitterSystemBase *soundemitterbase;
 static ConVar *g_pClosecaption = NULL;
@@ -176,6 +197,9 @@ EmitSound_t::EmitSound_t( const CSoundParameters &src )
 	m_bWarnOnMissingCloseCaption = false;
 	m_bWarnOnDirectWaveReference = false;
 	m_nSpeakerEntity = -1;
+	// if sound is tagged as version 2 or higher this will be treated as a soundentry!
+	m_hSoundScriptHash = src.m_hSoundScriptHash;
+	m_nSoundEntryVersion = src.m_nSoundEntryVersion;
 }
 
 void Hack_FixEscapeChars( char *str )
@@ -429,7 +453,7 @@ public:
 
 		if ( filesystem->FileExists( scriptfile, "GAME" ) )
 		{
-			soundemitterbase->AddSoundOverrides( scriptfile );
+			soundemitterbase->AddSoundOverrides( scriptfile, false, true );
 		}
 
 #if !defined( CLIENT_DLL )
@@ -513,7 +537,7 @@ public:
 		}
 	}
 
-	HSOUNDSCRIPTHANDLE PrecacheScriptSound( const char *soundname )
+	HSOUNDSCRIPTHASH PrecacheScriptSound( const char *soundname )
 	{
 		int soundIndex = soundemitterbase->GetSoundIndex( soundname );
 		if ( !soundemitterbase->IsValidIndex( soundIndex ) )
@@ -525,7 +549,7 @@ public:
 				CBaseEntity::PrecacheSound( soundname );
 	
 				g_bPermitDirectSoundPrecache = false;
-				return SOUNDEMITTER_INVALID_HANDLE;
+				return SOUNDEMITTER_INVALID_HASH;
 			}
 
 #if !defined( CLIENT_DLL )
@@ -541,14 +565,14 @@ public:
 				}
 			}
 #endif
-			return (HSOUNDSCRIPTHANDLE)soundIndex;
+			return (HSOUNDSCRIPTHASH)soundIndex;
 		}
 #if !defined( CLIENT_DLL )
 		LogPrecache( soundname );
 #endif
 
 		InternalPrecacheWaves( soundIndex );
-		return (HSOUNDSCRIPTHANDLE)soundIndex;
+		return (HSOUNDSCRIPTHASH)soundIndex;
 	}
 
 	void PrefetchScriptSound( const char *soundname )
@@ -566,12 +590,11 @@ public:
 		InternalPrefetchWaves( soundIndex );
 	}
 public:
+	
 
-	void EmitSoundByHandle( IRecipientFilter& filter, int entindex, const EmitSound_t & ep, HSOUNDSCRIPTHANDLE& handle )
+	// utility for cracking parameters
+	bool GetSoundEntryParameters( int entindex,  const EmitSound_t & ep, CSoundParameters & params, HSOUNDSCRIPTHASH& handle )
 	{
-		// Pull data from parameters
-		CSoundParameters params;
-
 		// Try to deduce the actor's gender
 		gender_t gender = GENDER_NONE;
 		CBaseEntity *ent = CBaseEntity::Instance( entindex );
@@ -583,22 +606,23 @@ public:
 
 		if ( !soundemitterbase->GetParametersForSoundEx( ep.m_pSoundName, handle, params, gender, true ) )
 		{
-			return;
+			return false;
 		}
 
 		if ( !params.soundname[0] )
-			return;
+			return false;
 
 		if ( !Q_strncasecmp( params.soundname, "vo", 2 ) &&
 			!( params.channel == CHAN_STREAM ||
-			   params.channel == CHAN_VOICE ) )
+			params.channel == CHAN_VOICE ) &&
+			params.m_nSoundEntryVersion < 2 )
 		{
 			DevMsg( "EmitSound:  Voice wave file %s doesn't specify CHAN_VOICE or CHAN_STREAM for sound %s\n",
 				params.soundname, ep.m_pSoundName );
 		}
 
 		// handle SND_CHANGEPITCH/SND_CHANGEVOL and other sound flags.etc.
-		if( ep.m_nFlags & SND_CHANGE_PITCH )
+		if( ( ep.m_nFlags & SND_CHANGE_PITCH ) )
 		{
 			params.pitch = ep.m_nPitch;
 		}
@@ -614,14 +638,76 @@ public:
 			params.soundname, 
 			params.soundlevel, 
 			params.volume, 
-			ep.m_nFlags,
+			ep.m_nFlags, 
 			params.pitch, 
 			ep.m_pOrigin, 
 			ep.m_flSoundTime,
 			ep.m_UtlVecSoundOrigin );
+
 		if ( bSwallowed )
-			return;
+			return false;
 #endif
+		return true;
+	}
+
+	// spew utility
+	void TraceEmitSoundEntry( int handle, const char *pSoundEntryName, CSoundParameters &pSoundParams, int nSeed )
+	{
+
+#if defined( CLIENT_DLL )
+		if( !snd_sos_show_client_xmit.GetInt() )
+		{
+			return;
+		}
+
+		Log_Msg( LOG_SND_EMITTERSYSTEM, Color( 180, 256, 180, 255 ), "Client: Emitting SoundEntry: %i : %s : %s : operators: %s : seed: %i\n", handle, pSoundEntryName, pSoundParams.soundname, pSoundParams.m_pOperatorsKV ? "true" : "false", nSeed );
+#else
+		if( !snd_sos_show_server_xmit.GetInt() )
+		{
+			return;
+		}
+
+		Log_Msg( LOG_SND_EMITTERSYSTEM, Color( 180, 180, 256, 255 ), "Server: Emitting SoundEntry: %i : %s : %s : operators: %s : seed: %i\n", handle, pSoundEntryName, pSoundParams.soundname, pSoundParams.m_pOperatorsKV ? "true" : "false", nSeed );
+#endif
+
+	}
+	// spew utility
+	void TraceEmitSoundEntry( HSOUNDSCRIPTHASH handle, const char *pSoundEntryName, const char *pSoundFileName )
+	{
+
+
+#if defined( CLIENT_DLL )
+		if( !snd_sos_show_client_xmit.GetInt() )
+		{
+			return;
+		}
+		Log_Msg( LOG_SND_EMITTERSYSTEM, Color( 180, 256, 180, 255 ), "Client: Emitting SoundEntry: %i : %s : %s\n", handle, pSoundEntryName, pSoundFileName );
+#else
+		if( !snd_sos_show_server_xmit.GetInt() )
+		{
+			return;
+		}
+		Log_Msg( LOG_SND_EMITTERSYSTEM, Color( 180, 180, 256, 255 ), "Server: Emitting SoundEntry: %i : %s : %s\n", handle, pSoundEntryName, pSoundFileName );
+#endif
+
+	}
+
+
+	//
+	// emitting via a "SoundEntry" as opposed to the actual "SoundFile"
+	// ep.m_pSoundName = a "SoundEntry" string
+	//
+	int EmitSoundByHandle( IRecipientFilter& filter, int entindex, const EmitSound_t & ep, HSOUNDSCRIPTHASH& handle )
+	{
+		// Whether the important params have come from code, defaults or the
+		// script, we emit using them to stay backwards compatible.
+		// It is possible, however, to override these values via the script
+		// entries.
+		CSoundParameters params;
+		if( !GetSoundEntryParameters( entindex, ep, params, handle ) )
+		{
+			return 0;
+		}
 
 #if defined( _DEBUG ) && !defined( CLIENT_DLL )
 		if ( !enginesound->IsSoundPrecached( params.soundname ) )
@@ -639,14 +725,44 @@ public:
 
 		// TERROR:
 		float startTime = Plat_FloatTime();
-		enginesound->EmitSound( 
+
+		// are we actually treating as a "SoundEntry"?
+		int nFlags = ep.m_nFlags;
+		if(sv_soundemitter_version.GetInt() > 1 && params.m_nSoundEntryVersion > 1)
+		{
+			 nFlags |= SND_IS_SCRIPTHANDLE;
+			
+			 TraceEmitSoundEntry( handle, ep.m_pSoundName, params, params.m_nRandomSeed );
+
+		}
+
+		// Emit via server or client engine call
+
+		// NOTE:  We must make a copy or else if the filter is owned by a SoundPatch, we'll end up destructively removing
+		//  all players from it!!!!
+		CRecipientFilter filterCopy;
+		filterCopy.CopyFrom( (CRecipientFilter &)filter );
+#ifdef PORTAL2
+		if( snd_prevent_ss_duplicates.GetBool() )
+		{
+			// THIS FUNCTION IS SUFFICIENT FOR PORTAL2 SPECIFIC CIRCUMSTANCES
+			// AND MAY OR MAY NOT FUNCTION AS EXPECTED WHEN USED WITH MULTIPLE
+			// SPLITSCREEN CLIENTS NETWORKED TOGETHER, ETC.
+			filterCopy.ReplaceSplitScreenPlayersWithOwners();
+		}
+#endif
+
+		int guid = enginesound->EmitSound(
 			filter, 
 			entindex, 
 			params.channel, 
-			params.soundname,
+			ep.m_pSoundName,    // gamesound
+			handle,				// gamesound handle
+			params.soundname,   // soundfile
 			params.volume,
 			(soundlevel_t)params.soundlevel,
-			sv_soundemitter_pause_all.GetBool() ? ep.m_nFlags | SND_SHOULDPAUSE : ep.m_nFlags, 
+			params.m_nRandomSeed,
+			ep.m_nFlags, 
 			params.pitch,
 			ep.m_pOrigin,
 			NULL,
@@ -692,6 +808,7 @@ public:
 		{
 			EmitCloseCaption( filter, entindex, params, ep );
 		}
+		return guid;
 	}
 
 	void EmitSound( IRecipientFilter& filter, int entindex, const EmitSound_t & ep )
@@ -716,6 +833,28 @@ public:
 			if ( bSwallowed )
 				return;
 #endif
+			
+			// Emission by soundfile is typically because the calling code has 
+			// already cracked the soundscript, loaded it's parameters and altered some.
+			// However, we want to retain BOTH the calling code's parameters
+			// AND the soundscript handle so that we have ALL the data for processing.
+			//
+			// if this has been updated to include soundscript handle, we can tell
+			// by the soundentry version and a valid soundscript handle. We flag it
+			// and add the data to transmission.
+			//
+			int nFlags = ep.m_nFlags;
+			const char *pSoundEntryName = ep.m_pSoundName;
+			if( ep.m_hSoundScriptHash != SOUNDEMITTER_INVALID_HASH &&
+				ep.m_nSoundEntryVersion > 1 &&
+				sv_soundemitter_version.GetInt() > 1 )
+			{
+				// reget original soundentry name
+				pSoundEntryName = soundemitterbase->GetSoundName( ep.m_hSoundScriptHash );
+				nFlags |= SND_IS_SCRIPTHANDLE;
+				TraceEmitSoundEntry( ep.m_hSoundScriptHash, pSoundEntryName, ep.m_pSoundName );
+
+			}
 
 			// TERROR:
 			float startTime = Plat_FloatTime();
@@ -735,11 +874,14 @@ public:
 			enginesound->EmitSound( 
 				filter, 
 				entindex, 
-				ep.m_nChannel, 
+				ep.m_nChannel,
+				pSoundEntryName,
+				ep.m_hSoundScriptHash,
 				ep.m_pSoundName, 
 				ep.m_flVolume, 
-				ep.m_SoundLevel, 
-				sv_soundemitter_pause_all.GetBool() ? ep.m_nFlags | SND_SHOULDPAUSE : ep.m_nFlags, 
+				ep.m_SoundLevel,
+				0,
+				ep.m_nFlags, 
 				ep.m_nPitch, 
 				ep.m_pOrigin,
 				NULL, 
@@ -776,15 +918,15 @@ public:
 			return;
 		}
 
-		if ( ep.m_hSoundScriptHandle == SOUNDEMITTER_INVALID_HANDLE )
+		if ( ep.m_hSoundScriptHash == SOUNDEMITTER_INVALID_HASH )
 		{
-			ep.m_hSoundScriptHandle = (HSOUNDSCRIPTHANDLE)soundemitterbase->GetSoundIndex( ep.m_pSoundName );
+			ep.m_hSoundScriptHash = (HSOUNDSCRIPTHASH)soundemitterbase->GetSoundIndex( ep.m_pSoundName );
 		}
 
-		if ( ep.m_hSoundScriptHandle == -1 )
+		if ( ep.m_hSoundScriptHash == -1 )
 			return;
 
-		EmitSoundByHandle( filter, entindex, ep, ep.m_hSoundScriptHandle );
+		EmitSoundByHandle( filter, entindex, ep, ep.m_hSoundScriptHash );
 	}
 
 	void EmitCloseCaption( IRecipientFilter& filter, int entindex, bool fromplayer, char const *token, CUtlVector< Vector >& originlist, float duration, bool warnifmissing /*= false*/, bool bForceSubtitle = false )
@@ -1016,9 +1158,6 @@ public:
 			params.volume = flVolume;
 		}
 
-		if (sv_soundemitter_pause_all.GetBool())
-			iFlags |= SND_SHOULDPAUSE;
-
 #if defined( CLIENT_DLL )
 		enginesound->EmitAmbientSound( params.soundname, params.volume, params.pitch, iFlags, soundtime );
 #else
@@ -1054,14 +1193,14 @@ public:
 
 	}
 
-	void StopSoundByHandle( int entindex, const char *soundname, HSOUNDSCRIPTHANDLE& handle, bool bIsStoppingSpeakerSound = false )
+	void StopSoundByHandle( int entindex, const char *soundname, HSOUNDSCRIPTHASH& handle, bool bIsStoppingSpeakerSound = false )
 	{
-		if ( handle == SOUNDEMITTER_INVALID_HANDLE )
+		if ( handle == SOUNDEMITTER_INVALID_HASH )
 		{
-			handle = (HSOUNDSCRIPTHANDLE)soundemitterbase->GetSoundIndex( soundname );
+			handle = (HSOUNDSCRIPTHASH)soundemitterbase->GetSoundIndex( soundname );
 		}
 
-		if ( handle == SOUNDEMITTER_INVALID_HANDLE )
+		if ( handle == SOUNDEMITTER_INVALID_HASH )
 			return;
 
 		CSoundParametersInternal *params;
@@ -1099,8 +1238,8 @@ public:
 
 	void StopSound( int entindex, const char *soundname )
 	{
-		HSOUNDSCRIPTHANDLE handle = (HSOUNDSCRIPTHANDLE)soundemitterbase->GetSoundIndex( soundname );
-		if ( handle == SOUNDEMITTER_INVALID_HANDLE )
+		HSOUNDSCRIPTHASH handle = (HSOUNDSCRIPTHASH)soundemitterbase->GetSoundIndex( soundname );
+		if ( handle == SOUNDEMITTER_INVALID_HASH )
 		{
 			return;
 		}
@@ -1151,10 +1290,6 @@ public:
 		if ( bSwallowed )
 			return;
 #endif
-
-		if (sv_soundemitter_pause_all.GetBool())
-			flags |= SND_SHOULDPAUSE;
-
 
 		if ( pSample && ( Q_stristr( pSample, ".wav" ) || Q_stristr( pSample, ".mp3" )) )
 		{
@@ -1580,7 +1715,7 @@ void CBaseEntity::EmitSound( const char *soundname, float soundtime /*= 0.0f*/, 
 // Purpose:  Non-static override for doing the general case of CPASAttenuationFilter( this ), and EmitSound( filter, entindex(), etc. );
 // Input  : *soundname - 
 //-----------------------------------------------------------------------------
-void CBaseEntity::EmitSound( const char *soundname, HSOUNDSCRIPTHANDLE& handle, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
+void CBaseEntity::EmitSound( const char *soundname, HSOUNDSCRIPTHASH& handle, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
 {
 	VPROF_BUDGET( "CBaseEntity::EmitSound", _T( "CBaseEntity::EmitSound" ) );
 
@@ -1629,7 +1764,7 @@ void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const char
 	params.m_pflSoundDuration = duration;
 	params.m_bWarnOnDirectWaveReference = true;
 
-	EmitSound( filter, iEntIndex, params, params.m_hSoundScriptHandle );
+	EmitSound( filter, iEntIndex, params, params.m_hSoundScriptHash );
 }
 
 //-----------------------------------------------------------------------------
@@ -1639,7 +1774,7 @@ void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const char
 //			*soundname - 
 //			*pOrigin - 
 //-----------------------------------------------------------------------------
-void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const char *soundname, HSOUNDSCRIPTHANDLE& handle, const Vector *pOrigin /*= NULL*/, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
+void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const char *soundname, HSOUNDSCRIPTHASH& handle, const Vector *pOrigin /*= NULL*/, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
 {
 	VPROF_BUDGET( "CBaseEntity::EmitSound", _T( "CBaseEntity::EmitSound" ) );
 
@@ -1675,7 +1810,7 @@ void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const Emit
 //			iEntIndex - 
 //			params - 
 //-----------------------------------------------------------------------------
-void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const EmitSound_t & params, HSOUNDSCRIPTHANDLE& handle )
+void CBaseEntity::EmitSound( IRecipientFilter& filter, int iEntIndex, const EmitSound_t & params, HSOUNDSCRIPTHASH& handle )
 {
 	VPROF_BUDGET( "CBaseEntity::EmitSound", _T( "CBaseEntity::EmitSound" ) );
 
@@ -1706,7 +1841,7 @@ void CBaseEntity::StopSound( const char *soundname )
 // Purpose: 
 // Input  : *soundname - 
 //-----------------------------------------------------------------------------
-void CBaseEntity::StopSound( const char *soundname, HSOUNDSCRIPTHANDLE& handle )
+void CBaseEntity::StopSound( const char *soundname, HSOUNDSCRIPTHASH& handle )
 {
 #if defined( CLIENT_DLL )
 	if ( entindex() == -1 )
@@ -1741,7 +1876,7 @@ soundlevel_t CBaseEntity::LookupSoundLevel( const char *soundname )
 }
 
 
-soundlevel_t CBaseEntity::LookupSoundLevel( const char *soundname, HSOUNDSCRIPTHANDLE& handle )
+soundlevel_t CBaseEntity::LookupSoundLevel( const char *soundname, HSOUNDSCRIPTHASH& handle )
 {
 	return soundemitterbase->LookupSoundLevelByHandle( soundname, handle );
 }
@@ -1768,10 +1903,6 @@ int SENTENCEG_Lookup(const char *sample)
 
 void UTIL_EmitAmbientSound( int entindex, const Vector &vecOrigin, const char *samp, float vol, soundlevel_t soundlevel, int fFlags, int pitch, float soundtime /*= 0.0f*/, float *duration /*=NULL*/ )
 {
-
-	if (sv_soundemitter_pause_all.GetBool())
-		fFlags |= SND_SHOULDPAUSE;
-
 	if (samp && *samp == '!')
 	{
 		int sentenceIndex = SENTENCEG_Lookup(samp);
@@ -1827,14 +1958,14 @@ bool CBaseEntity::GetParametersForSound( const char *soundname, CSoundParameters
 	return soundemitterbase->GetParametersForSound( soundname, params, gender );
 }
 
-bool CBaseEntity::GetParametersForSound( const char *soundname, HSOUNDSCRIPTHANDLE& handle, CSoundParameters &params, const char *actormodel )
+bool CBaseEntity::GetParametersForSound( const char *soundname, HSOUNDSCRIPTHASH& handle, CSoundParameters &params, const char *actormodel )
 {
 	gender_t gender = soundemitterbase->GetActorGender( actormodel );
 	
 	return soundemitterbase->GetParametersForSoundEx( soundname, handle, params, gender );
 }
 
-HSOUNDSCRIPTHANDLE CBaseEntity::PrecacheScriptSound( const char *soundname )
+HSOUNDSCRIPTHASH CBaseEntity::PrecacheScriptSound( const char *soundname )
 {
 #if !defined( CLIENT_DLL )
 	return g_SoundEmitterSystem.PrecacheScriptSound( soundname );

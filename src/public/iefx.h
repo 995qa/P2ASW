@@ -61,6 +61,8 @@ public:
 	virtual dlight_t   *GetElightByKey( int key ) = 0;
 };
 
+// p2port: These are commented out in Emulsion, but not in CSGO or the leaked Portal 2 dll
+
 #define VENGINE_EFFECTS_INTERFACE_VERSION "VEngineEffects001"
 
 extern IVEfx *effects;

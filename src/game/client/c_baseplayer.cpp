@@ -430,6 +430,7 @@ C_BasePlayer::C_BasePlayer() : m_iv_vecViewOffset( "C_BasePlayer::m_iv_vecViewOf
 	m_nSplitScreenSlot = -1;
 	m_bIsLocalPlayer = false;
 	m_afButtonForced = 0;
+	m_bDisableSimulationFix = true;
 
 }
 
@@ -2313,7 +2314,7 @@ void C_BasePlayer::PlayPlayerJingle()
 		// copy from download folder to materials/temp folder
 		// this is done since material system can access only materials/*.vtf files
 
-		if ( !engine->CopyFile( custname, fullsoundname) )
+		if ( !engine->CopyLocalFile( custname, fullsoundname) )
 			return;
 	}
 

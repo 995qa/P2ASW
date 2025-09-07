@@ -11,7 +11,7 @@
 #include "ai_memory.h"
 #include "prop_portal_shared.h"
 #include "sprite.h"
-#include "paint/player_pickup_paint_power_user.h"
+#include "player_pickup_paint_power_user.h"
 
 
 #define SF_FLOOR_TURRET_AUTOACTIVATE		0x00000020

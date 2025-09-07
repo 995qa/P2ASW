@@ -706,6 +706,7 @@ public:
 	CHLClient();
 
 	virtual int						Connect( CreateInterfaceFn appSystemFactory, CGlobalVarsBase *pGlobals );
+	virtual void                    Disconnect();
 	virtual int						Init( CreateInterfaceFn appSystemFactory, CGlobalVarsBase *pGlobals );
 
 	virtual void					PostInit();
@@ -790,8 +791,29 @@ public:
 	// Cache replay ragdolls
 	virtual bool			CacheReplayRagdolls( const char* pFilename, int nStartTick );
 
+	// Send a message to the replay browser
+	virtual void			ReplayUI_SendMessage( KeyValues *pMsg );
+	
+	// Get the client replay factory
+	virtual IReplayFactory *GetReplayFactory();
+
+	// Clear out the local player's replay pointer so it doesn't get deleted
+	virtual void			ClearLocalPlayerReplayPtr();
+	
+	virtual bool			ShouldDrawDropdownConsole();
+
+	// Get client screen dimensions
+	virtual int				GetScreenWidth();
+	virtual int				GetScreenHeight();
+
 	// save game screenshot writing
 	virtual void			WriteSaveGameScreenshotOfSize( const char *pFilename, int width, int height );
+	
+	// Write a .VTF screenshot to disk for the replay system
+	virtual void			WriteReplayScreenshot( WriteReplayScreenshotParams_t &params );
+
+	// Reallocate memory for replay screenshots - called if user changes resolution or if the convar "replay_screenshotresolution" changes
+	virtual void			UpdateReplayScreenshotCache();
 
 	// Gets the location of the player viewpoint
 	virtual bool			GetPlayerView( CViewSetup &playerView );
@@ -1136,6 +1158,15 @@ int CHLClient::Connect( CreateInterfaceFn appSystemFactory, CGlobalVarsBase *pGl
 	ConVar_Register( FCVAR_CLIENTDLL );
 
 	return true;
+}
+
+
+void CHLClient::Disconnect()
+{
+	ConVar_Unregister( );
+
+	STEAMWORKS_UNREGISTERTHREAD();
+	STEAMWORKS_TERMCEGLIBRARY();
 }
 
 int CHLClient::Init( CreateInterfaceFn appSystemFactory, CGlobalVarsBase *pGlobals )
@@ -1511,6 +1542,23 @@ bool CHLClient::HandleGameUIEvent( const InputEvent_t &inputEvent )
 #endif
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+bool CHLClient::ShouldDrawDropdownConsole()
+{
+#if defined( TF_CLIENT_DLL )
+	extern ConVar hud_freezecamhide;
+	extern bool IsTakingAFreezecamScreenshot();
+
+	if ( hud_freezecamhide.GetBool() && IsTakingAFreezecamScreenshot() )
+	{
+		return false;
+	}
+#endif
+
+	return true;
+}
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -2763,6 +2811,20 @@ void CHLClient::WriteSaveGameScreenshot( const char *pFilename )
 	view->WriteSaveGameScreenshot( pFilename );
 }
 
+void CHLClient::WriteReplayScreenshot( WriteReplayScreenshotParams_t &params )
+{
+#if defined( TF_CLIENT_DLL ) && defined( REPLAY_ENABLED ) // FIXME: Need run-time check for whether replay is enabled
+	view->WriteReplayScreenshot( params );
+#endif
+}
+
+void CHLClient::UpdateReplayScreenshotCache()
+{
+#if defined( TF_CLIENT_DLL ) && defined( REPLAY_ENABLED ) // FIXME: Need run-time check for whether replay is enabled
+	view->UpdateReplayScreenshotCache();
+#endif
+}
+
 // Given a list of "S(wavname) S(wavname2)" tokens, look up the localized text and emit
 //  the appropriate close caption if running with closecaption = 1
 void CHLClient::EmitSentenceCloseCaption( char const *tokenstream )
@@ -2890,6 +2952,114 @@ bool CHLClient::CacheReplayRagdolls( const char* pFilename, int nStartTick )
 #else
 	return false;
 #endif
+}
+
+void CHLClient::ReplayUI_SendMessage( KeyValues *pMsg )
+{
+#if defined( REPLAY_ENABLED ) && defined( TF_CLIENT_DLL )
+	const char *pType = pMsg->GetString( "type", NULL );
+	if ( !V_stricmp( pType, "newentry" ) )
+	{
+		if ( pMsg->GetInt( "showinputdlg", 0 ) )
+		{
+			// Get a name for the replay, saves to disk, add thumbnail to replay browser
+			ShowReplayInputPanel( pMsg );
+		}
+		else
+		{
+			// Just add the thumbnail if the replay browser exists
+			CReplayBrowserPanel* pReplayBrowser = ReplayUI_GetBrowserPanel();
+			if ( pReplayBrowser )
+			{
+				pReplayBrowser->SendMessage( pMsg );
+			}
+		}
+	}
+
+	// If we're deleting a replay notify the replay browser if necessary
+	else if ( !V_stricmp( pType, "delete" ) )
+	{
+		CReplayBrowserPanel* pReplayBrowser = ReplayUI_GetBrowserPanel();
+		if ( pReplayBrowser )
+		{
+			pReplayBrowser->SendMessage( pMsg );
+		}
+	}
+
+	// Confirm that the user wants to quit, even if there are unrendered replays
+	else if ( !V_stricmp( pType, "confirmquit" ) )
+	{
+//		ReplayUI_ShowConfirmQuitDlg();
+
+		// Until rendering actually works, just quit - don't display the confirmation dialog
+		engine->ClientCmd_Unrestricted( "quit" );
+	}
+	
+	else if ( !V_stricmp( pType, "display_message" ) )
+	{
+		const char *pLocalizeStr = pMsg->GetString( "localize" );
+
+		// Display a message?
+		if ( pLocalizeStr && pLocalizeStr[0] )
+		{
+			char szLocalized[256];
+			g_pVGuiLocalize->ConvertUnicodeToANSI( g_pVGuiLocalize->Find( pLocalizeStr ), szLocalized, sizeof(szLocalized) );
+			g_pClientMode->DisplayReplayMessage( szLocalized, -1.0f, NULL, pMsg->GetString( "sound", NULL ), false );
+		}
+	}
+
+	else if ( !V_stricmp( pType, "render_start" ) )
+	{
+		extern void ReplayUI_OpenReplayEditPanel();
+		ReplayUI_OpenReplayEditPanel();
+	}
+
+	else if ( !V_stricmp( pType, "render_complete" ) )
+	{
+		extern void ReplayUI_HideRenderEditPanel();
+		ReplayUI_HideRenderEditPanel();
+		ReplayUI_ReloadBrowser();
+	}
+
+	// Delete the KeyValues unless delete is explicitly set to 0
+	if ( pMsg->GetInt( "should_free", 1 ) )
+	{
+		pMsg->deleteThis();
+	}
+#endif
+}
+
+// Get the client replay factory
+IReplayFactory *CHLClient::GetReplayFactory()
+{
+#if defined( REPLAY_ENABLED ) && defined( TF_CLIENT_DLL ) // FIXME: Need run-time check for whether replay is enabled
+	extern IReplayFactory *g_pReplayFactory;
+	return g_pReplayFactory;
+#else
+	return NULL;
+#endif
+}
+
+// Clear out the local player's replay pointer so it doesn't get deleted
+void CHLClient::ClearLocalPlayerReplayPtr()
+{
+#if defined( REPLAY_ENABLED )
+	C_BasePlayer *pLocalPlayer = C_BasePlayer::GetLocalPlayer();
+	Assert( pLocalPlayer );
+
+	pLocalPlayer->ClearCachedReplayPtr();
+#endif
+}
+
+
+int CHLClient::GetScreenWidth()
+{
+	return ScreenWidth();
+}
+
+int CHLClient::GetScreenHeight()
+{
+	return ScreenHeight();
 }
 
 // NEW INTERFACES
@@ -3142,7 +3312,28 @@ class CClientMaterialSystem : public IClientMaterialSystem
 		if ( !clienttools->IsInRecordingMode() )
 			return HTOOLHANDLE_INVALID;
 
-		C_BaseEntity *pEnt = view->GetCurrentlyDrawingEntity();
+		const C_BaseEntity *pEnt = NULL;
+		if( m_pProxyData ) //dynamic_cast not possible with void *. Just going to have to search to verify that it actually is an entity
+		{
+			CClientEntityList &entList = ClientEntityList();
+			C_BaseEntity *pIter = entList.FirstBaseEntity();
+			while( pIter )
+			{
+				if( (pIter == m_pProxyData) || (pIter->GetClientRenderable() == m_pProxyData) )
+				{
+					pEnt = pIter;
+					break;
+				}
+				
+				pIter = entList.NextBaseEntity( pIter );
+			}
+		}
+		
+		if( !pEnt && (materials->GetThreadMode() == MATERIAL_SINGLE_THREADED) )
+		{
+			pEnt = view->GetCurrentlyDrawingEntity();
+		}
+
 		if ( !pEnt || !pEnt->IsToolRecording() )
 			return HTOOLHANDLE_INVALID;
 
@@ -3152,6 +3343,12 @@ class CClientMaterialSystem : public IClientMaterialSystem
 	{
 		ToolFramework_PostToolMessage( hEntity, pMsg );
 	}
+	virtual void SetMaterialProxyData( void *pProxyData )
+	{
+		m_pProxyData = pProxyData;
+	}
+
+	void *m_pProxyData;
 };
 
 //-----------------------------------------------------------------------------

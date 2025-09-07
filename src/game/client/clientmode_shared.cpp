@@ -1190,6 +1190,7 @@ void ClientModeShared::FireGameEvent( IGameEvent *event )
 			hudChat->Printf( CHAT_FILTER_SERVERMSG, "%s", szLocalized );
 		}
 	}
+#if 0 // p2port: no achievement manager in Emulsion
 	else if ( Q_strcmp( "achievement_earned", eventname ) == 0 )
 	{
 		if ( this == GetFullscreenClientMode() )
@@ -1201,7 +1202,6 @@ void ClientModeShared::FireGameEvent( IGameEvent *event )
 
 		if ( !hudChat || !pPlayer )
 			return;
-
 		if ( !IsInCommentaryMode() )
 		{
 			CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
@@ -1243,6 +1243,7 @@ void ClientModeShared::FireGameEvent( IGameEvent *event )
 			}
 		}
 	}
+#endif
 	else
 	{
 		DevMsg( 2, "Unhandled GameEvent in ClientModeShared::FireGameEvent - %s\n", event->GetName()  );

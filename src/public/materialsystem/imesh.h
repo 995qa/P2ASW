@@ -173,6 +173,14 @@ struct MeshDesc_t : public VertexDesc_t, public IndexDesc_t
 {
 };
 
+//-----------------------------------------------------------------------------
+// The Mesh memory descriptor
+//-----------------------------------------------------------------------------
+struct MeshBuffersAllocationSettings_t
+{
+	uint32 m_uiIbUsageFlags;
+};
+
 
 //-----------------------------------------------------------------------------
 // Standard vertex formats for models
@@ -335,6 +343,12 @@ public:
 	virtual IMesh* GetMesh() = 0;
 };
 
+//-----------------------------------------------------------------------------
+abstract_class ICachedPerFrameMeshData
+{
+public:
+	virtual void Free() = 0;
+};
 
 //-----------------------------------------------------------------------------
 // Interface to the mesh - needs to contain an IVertexBuffer and an IIndexBuffer to emulate old mesh behavior
@@ -376,7 +390,7 @@ public:
 	// New version
 	// Locks/unlocks the mesh, providing space for nVertexCount and nIndexCount.
 	// nIndexCount of -1 means don't lock the index buffer...
-	virtual void LockMesh( int nVertexCount, int nIndexCount, MeshDesc_t &desc ) = 0;
+	virtual void LockMesh( int nVertexCount, int nIndexCount, MeshDesc_t &desc, MeshBuffersAllocationSettings_t *pSettings = 0 ) = 0;
 	virtual void ModifyBegin( int nFirstVertex, int nVertexCount, int nFirstIndex, int nIndexCount, MeshDesc_t& desc ) = 0;
 	virtual void ModifyEnd( MeshDesc_t& desc ) = 0;
 	virtual void UnlockMesh( int nVertexCount, int nIndexCount, MeshDesc_t &desc ) = 0;
@@ -394,9 +408,21 @@ public:
 	// Draws the mesh w/ modulation.
 	virtual void DrawModulated( const Vector4D &diffuseModulation, int nFirstIndex = -1, int nIndexCount = 0 ) = 0;
 
-#if defined( _X360 )
-	virtual unsigned ComputeMemoryUsed() = 0;
-#endif
+	virtual unsigned int ComputeMemoryUsed() = 0;
+
+	virtual void * AccessRawHardwareDataStream( uint8 nRawStreamIndex, uint32 numBytes, uint32 uiFlags, void *pvContext ) = 0;
+
+	virtual ICachedPerFrameMeshData *GetCachedPerFrameMeshData() = 0;
+	virtual void ReconstructFromCachedPerFrameMeshData( ICachedPerFrameMeshData *pData ) = 0;
+
+	//p2port: Emulsion
+	// 0x78
+	virtual void LockMesh_Old( int nVertexCount, int nIndexCount, MeshDesc_t& desc )
+	{
+		MeshBuffersAllocationSettings_t sett;
+		sett.m_uiIbUsageFlags = 0;
+		LockMesh( nVertexCount, nIndexCount, desc, &sett );
+	}
 };
 
 
@@ -2294,10 +2320,12 @@ public:
 	void AdvanceIndex();
 	void AdvanceIndices( int nIndexCount );
 
-	int GetCurrentIndex();
+	int GetCurrentIndex() const;
+	int GetIndexOffset() const;
 	int GetFirstIndex() const;
 
 	unsigned short const* Index() const;
+	unsigned short *BaseIndexData() const;
 
 	// Used to define the indices (only used if you aren't using primitives)
 	void Index( unsigned short nIndex );
@@ -2693,15 +2721,25 @@ inline void CIndexBuilder::AdvanceIndices( int nIndices )
 //-----------------------------------------------------------------------------
 // Returns the current index
 //-----------------------------------------------------------------------------
-inline int CIndexBuilder::GetCurrentIndex()
+inline int CIndexBuilder::GetCurrentIndex() const
 {
 	return m_nCurrentIndex;
+}
+
+inline int CIndexBuilder::GetIndexOffset() const
+{
+	return m_nIndexOffset;
 }
 
 inline unsigned short const* CIndexBuilder::Index() const
 {
 	Assert( m_nCurrentIndex < m_nMaxIndexCount );
 	return &m_pIndices[m_nCurrentIndex];
+}
+
+inline unsigned short *CIndexBuilder::BaseIndexData() const
+{
+	return m_pIndices;
 }
 
 inline void CIndexBuilder::SelectIndex( int nIndex )
@@ -2824,6 +2862,16 @@ inline void CIndexBuilder::FastIndexList( const unsigned short *pIndexList, int 
 }
 
 
+FORCEINLINE unsigned int TwoIndices( unsigned int nIndex1, unsigned int nIndex2 )
+{
+#ifdef PLAT_LITTLE_ENDIAN
+	return ( (unsigned int)nIndex1 ) | ( ( (unsigned int)nIndex2 ) << 16 );
+#else
+	return ( (unsigned int)nIndex2 ) | ( ( (unsigned int)nIndex1 ) << 16 );
+#endif
+}
+
+
 //-----------------------------------------------------------------------------
 // NOTE: This version is the one you really want to achieve write-combining;
 // Write combining only works if you write in 4 bytes chunks.
@@ -2919,7 +2967,7 @@ public:
 	// Locks the vertex buffer, can specify arbitrary index lists
 	// (must use the Index() call below)
 	void Begin( IMesh *pMesh, MaterialPrimitiveType_t type, int nVertexCount, int nIndexCount, int *nFirstVertex );
-	void Begin( IMesh *pMesh, MaterialPrimitiveType_t type, int nVertexCount, int nIndexCount );
+	void Begin( IMesh *pMesh, MaterialPrimitiveType_t type, int nVertexCount, int nIndexCount, MeshBuffersAllocationSettings_t *pSettings = 0 );
 
 	// forward compat
 	void Begin( IVertexBuffer *pVertexBuffer, MaterialPrimitiveType_t type, int numPrimitives );
@@ -2955,6 +3003,9 @@ public:
 
 	// Returns the base vertex memory pointer
 	void* BaseVertexData();
+
+	// Returns the base index memory pointer
+	unsigned short* BaseIndexData();
 
 	// Selects the nth Vertex and Index 
 	void SelectVertex( int idx );
@@ -3311,7 +3362,7 @@ inline void CMeshBuilder::Begin( IMesh *pMesh, MaterialPrimitiveType_t type, int
 	*nFirstVertex = m_VertexBuilder.m_nFirstVertex * m_VertexBuilder.VertexSize();
 }
 
-inline void CMeshBuilder::Begin( IMesh* pMesh, MaterialPrimitiveType_t type, int nVertexCount, int nIndexCount )
+inline void CMeshBuilder::Begin( IMesh* pMesh, MaterialPrimitiveType_t type, int nVertexCount, int nIndexCount, MeshBuffersAllocationSettings_t *pMeshSettings )
 {
 	Assert( pMesh && (!m_pMesh) );
 
@@ -3332,7 +3383,7 @@ inline void CMeshBuilder::Begin( IMesh* pMesh, MaterialPrimitiveType_t type, int
 	m_pMesh->SetPrimitiveType( type );
 
 	// Lock the vertex and index buffer
-	m_pMesh->LockMesh( nVertexCount, nIndexCount, *this );
+	m_pMesh->LockMesh( nVertexCount, nIndexCount, *this, pMeshSettings );
 
 	m_IndexBuilder.AttachBegin( pMesh, nIndexCount, *this );
 	m_VertexBuilder.AttachBegin( pMesh, nVertexCount, *this );
@@ -3572,6 +3623,15 @@ FORCEINLINE int CMeshBuilder::IndexCount() const
 FORCEINLINE void* CMeshBuilder::BaseVertexData()
 {
 	return m_VertexBuilder.BaseVertexData();
+}
+
+
+//-----------------------------------------------------------------------------
+// Returns the base index memory pointer
+//-----------------------------------------------------------------------------
+FORCEINLINE unsigned short* CMeshBuilder::BaseIndexData()
+{
+	return m_IndexBuilder.BaseIndexData();
 }
 
 //-----------------------------------------------------------------------------

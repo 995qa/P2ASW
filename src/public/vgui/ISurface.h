@@ -295,8 +295,6 @@ public:
 	virtual IImage *GetIconImageForFullPath( char const *pFullPath ) = 0;
 	virtual void DrawUnicodeString( const wchar_t *pwString, FontDrawType_t drawType = FONT_DRAW_DEFAULT ) = 0;
 	virtual void PrecacheFontCharacters(HFont font, wchar_t *pCharacters) = 0;
-	// Console-only.  Get the string to use for the current video mode for layout files.
-	virtual const char *GetResolutionKey( void ) const = 0;
 
 	virtual const char *GetFontName( HFont font ) = 0;
 
@@ -323,6 +321,15 @@ public:
 	virtual void SetClipRect( int x0, int y0, int x1, int y1 ) = 0;
 
 	virtual void DrawTexturedRectEx( DrawTexturedRectParms_t *pDrawParms ) = 0;
+	
+	virtual void GetKernedCharWidth( HFont font, wchar_t ch, wchar_t chBefore, wchar_t chAfter, float &wide, float &abcA, float &abcC ) = 0;
+
+	virtual void DrawUpdateRegionTextureRGBA( int nTextureID, int x, int y, const unsigned char *pchData, int wide, int tall, ImageFormat imageFormat ) = 0;
+	virtual bool BHTMLWindowNeedsPaint(IHTML *htmlwin) = 0 ;
+
+	virtual void DrawSetTextureRGBALinear( int id, const unsigned char *rgba, int wide, int tall ) = 0 ;
+
+	//virtual const char *GetWebkitHTMLUserAgentString() = 0;
 };
 
 }

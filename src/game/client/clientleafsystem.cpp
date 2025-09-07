@@ -138,6 +138,8 @@ public:
 	virtual void EnableRendering( ClientRenderHandle_t handle, bool bEnable );
 	virtual void EnableBloatedBounds( ClientRenderHandle_t handle, bool bEnable );
 	virtual void DisableCachedRenderBounds( ClientRenderHandle_t handle, bool bDisable );
+	virtual void RenderInFastReflections( ClientRenderHandle_t handle, bool bRenderInFastReflections );
+	virtual bool IsRenderingInFastReflections( ClientRenderHandle_t handle ) const;
 
 	// Adds a renderable to a set of leaves
 	virtual void AddRenderableToLeaves( ClientRenderHandle_t handle, int nLeafCount, unsigned short *pLeaves );
@@ -202,6 +204,7 @@ private:
 		unsigned short		m_LeafList;					// What leafs is it in?
 		short				m_Area;						// -1 if the renderable spans multiple areas.
 		uint16				m_Flags : 10;				// rendering flags
+		uint16				m_bRenderInFastReflection : 1;	// Should we render in the "fast" reflection?
 		uint16				m_nSplitscreenEnabled : 2;	// splitscreen rendering flags
 		uint16				m_nTranslucencyType : 2;	// RenderableTranslucencyType_t
 		uint16				m_nModelType : 2;			// RenderableModelType_t
@@ -293,6 +296,9 @@ private:
 
 	// Adds a shadow to a leaf/removes shadow from leaf
 	void RemoveShadowFromLeaves( ClientLeafShadowHandle_t handle );
+	
+	// Methods related to renderable list building
+	void BuildRenderablesListForFastReflections( const SetupRenderInfo_t &info );
 
 	// Methods related to renderable list building
 	int ExtractStaticProps( int nCount, RenderableInfo_t **ppRenderables );
@@ -786,6 +792,7 @@ void CClientLeafSystem::CreateRenderableHandle( IClientRenderable* pRenderable, 
 	info.m_FirstShadow = m_ShadowsOnRenderable.InvalidIndex();
 	info.m_LeafList = m_RenderablesInLeaf.InvalidIndex();
 	info.m_Flags = 0;
+	info.m_bRenderInFastReflection = false;
 	info.m_nRenderFrame = -1;
 	info.m_EnumCount = 0;
 	info.m_nSplitscreenEnabled = nSplitscreenEnabled & 0x3;
@@ -822,6 +829,24 @@ RenderableTranslucencyType_t CClientLeafSystem::GetTranslucencyType( ClientRende
 	return (RenderableTranslucencyType_t)info.m_nTranslucencyType;
 }
 
+
+void CClientLeafSystem::RenderInFastReflections( ClientRenderHandle_t handle, bool bRenderInFastReflections )
+{
+	if ( handle == INVALID_CLIENT_RENDER_HANDLE )
+		return;
+
+	RenderableInfo_t &info = m_Renderables[handle];
+	info.m_bRenderInFastReflection = bRenderInFastReflections;
+}
+
+bool CClientLeafSystem::IsRenderingInFastReflections( ClientRenderHandle_t handle ) const
+{
+	if ( handle == INVALID_CLIENT_RENDER_HANDLE )
+		return false;
+
+	const RenderableInfo_t &info = m_Renderables[handle];
+	return info.m_bRenderInFastReflection;
+}
 
 void CClientLeafSystem::EnableSplitscreenRendering( ClientRenderHandle_t handle, uint32 nFlags )
 {
@@ -1659,7 +1684,7 @@ bool CClientLeafSystem::ShouldDrawDetailObjectsInLeaf( int leaf, int frameNumber
 // Adds a renderable to the list of renderables to render this frame
 //-----------------------------------------------------------------------------
 inline void AddRenderableToRenderList( CClientRenderablesList &renderList, IClientRenderable *pRenderable, 
-	int iLeaf, RenderGroup_t group,	int nModelType, uint8 nAlphaModulation, bool bTwoPass = false )
+	int iLeaf, RenderGroup_t group,	int nModelType, uint8 nAlphaModulation, bool bShadowDepthNoCache, bool bTwoPass = false )
 {
 #ifdef _DEBUG
 	if (cl_drawleaf.GetInt() >= 0)
@@ -2500,7 +2525,7 @@ void CClientLeafSystem::AddRenderablesToRenderLists( const SetupRenderInfo_t &in
 					break;
 				Assert( detailInfo.m_nLeafIndex == nWorldListLeafIndex );
 				AddRenderableToRenderList( *info.m_pRenderList, detailInfo.m_pRenderable, 
-					nWorldListLeafIndex, detailInfo.m_nRenderGroup, RENDERABLE_MODEL_ENTITY, detailInfo.m_InstanceData.m_nAlpha );
+					nWorldListLeafIndex, detailInfo.m_nRenderGroup, RENDERABLE_MODEL_ENTITY, detailInfo.m_InstanceData.m_nAlpha, false, false ); // p2port: add proper conditions rather than just using false
 			}
 
 			int nNewTranslucent = nTranslucentEntries - nTranslucent;
@@ -2518,7 +2543,7 @@ void CClientLeafSystem::AddRenderablesToRenderLists( const SetupRenderInfo_t &in
 		if ( !bIsTranslucent )
 		{
 			AddRenderableToRenderList( *info.m_pRenderList, pInfo->m_pRenderable, 
-				nWorldListLeafIndex, RENDER_GROUP_OPAQUE, pInfo->m_nModelType, pRLInfo[i].m_nAlpha );
+				nWorldListLeafIndex, RENDER_GROUP_OPAQUE, pInfo->m_nModelType, pRLInfo[i].m_nAlpha, false, false ); // p2port: add proper conditions rather than just using false
 			continue;
 		}
 
@@ -2531,13 +2556,13 @@ void CClientLeafSystem::AddRenderablesToRenderLists( const SetupRenderInfo_t &in
 			RenderGroup_t group = pRLInfo[i].m_bIgnoreZBuffer ? RENDER_GROUP_TRANSLUCENT_IGNOREZ : RENDER_GROUP_TRANSLUCENT;
 
 			AddRenderableToRenderList( *info.m_pRenderList, pInfo->m_pRenderable, 
-				nWorldListLeafIndex, group, pInfo->m_nModelType, pRLInfo[i].m_nAlpha, bIsTwoPass );
+				nWorldListLeafIndex, group, pInfo->m_nModelType, pRLInfo[i].m_nAlpha, false, bIsTwoPass ); // p2port: add a proper condition rather than just using false
 		}
 
 		if ( bIsTwoPass )	// Also add to opaque list if it's a two-pass model... 
 		{
 			AddRenderableToRenderList( *info.m_pRenderList, pInfo->m_pRenderable, 
-				nWorldListLeafIndex, RENDER_GROUP_OPAQUE, pInfo->m_nModelType, 255, bIsTwoPass );
+				nWorldListLeafIndex, RENDER_GROUP_OPAQUE, pInfo->m_nModelType, 255, false, bIsTwoPass );  // p2port: add a proper condition rather than just using false
 		}
 	}
 
@@ -2549,7 +2574,7 @@ void CClientLeafSystem::AddRenderablesToRenderLists( const SetupRenderInfo_t &in
 			break;
 		Assert( detailInfo.m_nLeafIndex == nWorldListLeafIndex );
 		AddRenderableToRenderList( *info.m_pRenderList, detailInfo.m_pRenderable, 
-			nWorldListLeafIndex, detailInfo.m_nRenderGroup, RENDERABLE_MODEL_ENTITY, detailInfo.m_InstanceData.m_nAlpha );
+			nWorldListLeafIndex, detailInfo.m_nRenderGroup, RENDERABLE_MODEL_ENTITY, detailInfo.m_InstanceData.m_nAlpha, false, false ); // p2port: add proper conditions rather than just using false
 	}
 
 	int nNewTranslucent = nTranslucentEntries - nTranslucent;
@@ -2563,6 +2588,58 @@ void CClientLeafSystem::AddRenderablesToRenderLists( const SetupRenderInfo_t &in
 }
 
 static ConVar r_drawallrenderables( "r_drawallrenderables", "0", FCVAR_CHEAT, "Draw all renderables, even ones inside solid leaves." );
+extern ConVar r_flashlight_nostaticgeo;
+
+static ConVar r_fastreflectionfastpath( "r_fastreflectionfastpath", "1" );
+
+void CClientLeafSystem::BuildRenderablesListForFastReflections( const SetupRenderInfo_t &info )
+{
+	Frustum_t *list[256];
+	engine->GetFrustumList( list, 256 );
+
+	for ( int i = m_Renderables.Head(); i != m_Renderables.InvalidIndex(); i = m_Renderables.Next( i ) )
+	{
+		RenderableInfo_t *pInfo = &m_Renderables[ i ];
+
+		if ( pInfo->m_Flags & ( RENDER_FLAGS_RENDER_WITH_VIEWMODELS | RENDER_FLAGS_DISABLE_RENDERING ) )
+			continue;
+
+		// If we've seen this already, then we don't need to add it 
+		if ( pInfo->m_nRenderFrame == info.m_nRenderFrame )
+			continue;
+
+		pInfo->m_nRenderFrame = info.m_nRenderFrame;
+
+		if ( pInfo->m_bRenderInFastReflection )
+		{
+			// Use frustum 0 instead of [area index + 1] beacuse we're not guaranteed to have valid per-area frustums
+			// wehn taking the simple world model + fast reflection path.
+			// Frustum 0 is always valid (and more conservative than area frustums in slots 1, 2, 3...) because it's the camera frustum,
+			// whereas the area frustums are smaller/refined frusta that result from clipping the camera frustum against 2D screen-space area portals
+			int nFrustumIndex = 0; // pInfo->m_Area + 1;
+			
+			// Bounds should be valid as ComputeAllBounds called from CViewRender::RenderView
+			if ( !list[ nFrustumIndex ]->CullBox( pInfo->m_vecAbsMins, pInfo->m_vecAbsMaxs ) )
+			{
+				RenderGroup_t renderGroup = RENDER_GROUP_OPAQUE;
+				CClientAlphaProperty *pAlphaProp = pInfo->m_pAlphaProperty;
+
+				if ( pAlphaProp )
+				{
+					int nAlpha = pAlphaProp->ComputeRenderAlpha();
+					bool bIsTranslucent = ( nAlpha != 255 ) || ( pInfo->m_nTranslucencyType != RENDERABLE_IS_OPAQUE ); 
+					if ( bIsTranslucent )
+					{
+						renderGroup = pAlphaProp->IgnoresZBuffer() ? RENDER_GROUP_TRANSLUCENT_IGNOREZ : RENDER_GROUP_TRANSLUCENT;
+					}
+				}
+
+				AddRenderableToRenderList( *info.m_pRenderList, pInfo->m_pRenderable, 
+					0, renderGroup, pInfo->m_nModelType, 255, false /*pInfo->m_bDisableShadowDepthCaching*/ ); //p2port TODO: Add m_bDisableShadowDepthCaching
+			}
+		}
+	}
+}
 
 //-----------------------------------------------------------------------------
 // Main entry point to build renderable lists

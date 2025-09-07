@@ -79,6 +79,20 @@ enum Sampler_t
 	SHADER_SAMPLER_COUNT,
 };
 
+//----------------------------------------------------------------------
+// texture binding options
+//----------------------------------------------------------------------
+enum TextureBindFlags_t
+{
+	// these flags are OR'd into the sampler index for texture binding commands
+	TEXTURE_BINDFLAGS_SRGBREAD =  ( 1 << 31 ),
+	
+	// Enables shadow filtering or ATI Fetch4 depending on the platform/device caps.
+	TEXTURE_BINDFLAGS_SHADOWDEPTH = ( 1 << 30 ),
+
+	TEXTURE_BINDFLAGS_NONE = 0,
+};
+
 //-----------------------------------------------------------------------------
 // Vertex texture sampler identifiers
 //-----------------------------------------------------------------------------

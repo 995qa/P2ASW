@@ -152,14 +152,14 @@ void CPropTractorBeamProjector::Project( void )
 	{
 		EmitSound_t ep;
 		ep.m_nSpeakerEntity = -1;
-		ep.m_hSoundScriptHandle = -1; // Was m_hSoundScriptHash, but Swarm uses m_hSoundScriptHandle instead.
+		ep.m_hSoundScriptHash = SOUNDEMITTER_INVALID_HASH;
 		ep.m_nFlags = 0;
 		ep.m_nPitch = 100;
 		//memset(&ep.m_pOrigin, 0, 12);
 		ep.m_bEmitCloseCaption = 1;
 		ep.m_bWarnOnDirectWaveReference = 0;
 		//memset(&ep.m_UtlVecSoundOrigin, 0, sizeof(ep.m_UtlVecSoundOrigin));
-		//ep.m_nSoundEntryVersion = 1;
+		ep.m_nSoundEntryVersion = 1;
 		ep.m_nChannel = 6;
 		ep.m_pSoundName = "VFX.TbeamEmitterSpinLp";
 		ep.m_flVolume = 1.0;

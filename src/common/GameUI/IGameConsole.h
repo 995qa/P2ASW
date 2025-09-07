@@ -34,6 +34,13 @@ public:
 	virtual bool IsConsoleVisible() = 0;
 
 	virtual void SetParent( int parent ) = 0;
+
+	// p2port: Not in CSGO or Portal 2 PDBs, but IS in Emulsion
+	//{
+	virtual void ActivateDelayed(float time) = 0;
+	
+	virtual void Override(IGameConsole* pConsole) = 0;
+	//}
 };
 
 #define GAMECONSOLE_INTERFACE_VERSION "GameConsole004"

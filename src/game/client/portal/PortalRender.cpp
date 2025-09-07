@@ -43,7 +43,7 @@ static ConVar r_forcecheapwater( "r_forcecheapwater", "0", FCVAR_CLIENTDLL | FCV
 ConVar r_portal_stencil_depth( "r_portal_stencil_depth", "2", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "When using stencil views, this changes how many views within views we see" );
 ConVar	r_portal_use_pvs_optimization( "r_portal_use_pvs_optimization", "1", 0, "Enables an optimization that allows portals to be culled when outside of the PVS." );
 
-ConVar r_portal_fastpath( "r_portal_fastpath", "0", 0 ); // Default is 1 in Portal 2, but changing it in Swarm
+ConVar r_portal_fastpath( "r_portal_fastpath", "1", 0 );
 ConVar r_portal_fastpath_max_ghost_recursion( "r_portal_fastpath_max_ghost_recursion", "2", 0 );
 ConVar r_portal_earlyz( "r_portal_earlyz", "1", 0 );
 ConVar r_portalscissor( "r_portalscissor", "0", 0 );
@@ -204,17 +204,13 @@ CPortalRender::CPortalRender()
 	m_pRenderingViewExitPortal = NULL;
 
 	m_PortalViewIDNodeChain[0] = &m_HeadPortalViewIDNode;
-#ifdef USE_VISDATA
 	m_pCachedPortalQuadMeshData = NULL;
-#endif
 }
 
 CPortalRender::~CPortalRender()
 {
-#ifdef USE_VISDATA
 	if ( m_pCachedPortalQuadMeshData )
 		m_pCachedPortalQuadMeshData->Free();
-#endif
 }
 
 void CPortalRender::LevelInitPreEntity()
@@ -602,14 +598,13 @@ void CPortalRender::DrawEarlyZPortals( CViewRender *pViewRender )
 	}
 
 	IMesh *pPortalQuadMesh = NULL;
-#ifdef USE_VISDATA
+
 	// Make a vertex buffer with all portal quads
 	if ( m_pCachedPortalQuadMeshData ) // Free it from the last time
 	{
 		m_pCachedPortalQuadMeshData->Free();
 	}
 	m_pCachedPortalQuadMeshData = NULL;
-#endif
 	pPortalQuadMesh = CPortalRenderable_FlatBasic::CreateMeshForPortals( pRenderContext, m_ActivePortals.Count(), m_ActivePortals.Base(), m_clampedPortalMeshRenderInfos );
 	m_portalIsOpening.SetCount( iNumRenderablePortals );
 	for ( int i = 0; i < m_portalIsOpening.Count(); i++ )
@@ -763,21 +758,16 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 	// Make a vertex buffer with all portal quads
 	if ( m_iViewRecursionLevel == 0 )
 	{
-#ifdef USE_VISDATA
 		if ( m_pCachedPortalQuadMeshData ) // Free it from the last time
 		{
 			m_pCachedPortalQuadMeshData->Free();
 		}
 
 		m_pCachedPortalQuadMeshData = NULL;
-#endif
-
 		pPortalQuadMesh = CPortalRenderable_FlatBasic::CreateMeshForPortals( pRenderContext, m_AllPortals.Count(), m_AllPortals.Base(), m_clampedPortalMeshRenderInfos );
-
-#ifdef USE_VISDATA
+		
 		m_pCachedPortalQuadMeshData = pPortalQuadMesh->GetCachedPerFrameMeshData();
-		Assert( m_pCachedPortalQuadMeshData );		
-#endif
+		Assert( m_pCachedPortalQuadMeshData );
 		m_portalQuadMeshVertexFmt = pPortalQuadMesh->GetVertexFormat();
 
 		m_portalIsOpening.SetCount( m_AllPortals.Count() );
@@ -792,13 +782,9 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 	{
 		if ( pPortalQuadMesh == NULL )
 		{
-#ifdef USE_VISDATA
 			Assert( m_pCachedPortalQuadMeshData );
-#endif
 			pPortalQuadMesh = pRenderContext->GetDynamicMeshEx( m_portalQuadMeshVertexFmt );
-#ifdef USE_VISDATA
 			pPortalQuadMesh->ReconstructFromCachedPerFrameMeshData( m_pCachedPortalQuadMeshData );
-#endif
 		}
 		DrawPortalGhostLocations( pRenderContext, pPortalQuadMesh, m_portalGhostRenderInfos.Base(), m_portalGhostRenderInfos.Count() );
 	}
@@ -866,13 +852,9 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 
 	if ( pPortalQuadMesh == NULL )
 	{
-#ifdef USE_VISDATA
 		Assert( m_pCachedPortalQuadMeshData );
-#endif
 		pPortalQuadMesh = pRenderContext->GetDynamicMeshEx( m_portalQuadMeshVertexFmt );
-#ifdef USE_VISDATA
 		pPortalQuadMesh->ReconstructFromCachedPerFrameMeshData( m_pCachedPortalQuadMeshData );
-#endif
 	}
 
 	pRenderContext->SetIntRenderingParameter( INT_RENDERPARM_PORTAL_RECURSION_DEPTH, m_iViewRecursionLevel );
@@ -1014,13 +996,9 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 
 		if ( pPortalQuadMesh == NULL )
 		{
-#ifdef USE_VISDATA
 			Assert( m_pCachedPortalQuadMeshData );
-#endif
 			pPortalQuadMesh = pRenderContext->GetDynamicMeshEx( m_portalQuadMeshVertexFmt );
-#ifdef USE_VISDATA
 			pPortalQuadMesh->ReconstructFromCachedPerFrameMeshData( m_pCachedPortalQuadMeshData );
-#endif
 		}
 
 		for ( int i = 0; i < portalRenderablesToDraw.Count(); i++ )
@@ -1080,13 +1058,9 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 
 		if ( pPortalQuadMesh == NULL )
 		{
-#ifdef USE_VISDATA
 			Assert( m_pCachedPortalQuadMeshData );
-#endif
 			pPortalQuadMesh = pRenderContext->GetDynamicMeshEx( m_portalQuadMeshVertexFmt );
-#ifdef USE_VISDATA
 			pPortalQuadMesh->ReconstructFromCachedPerFrameMeshData( m_pCachedPortalQuadMeshData );
-#endif
 		}
 
 		for ( int i = 0; i < portalRenderablesToDraw.Count(); i++ )
@@ -1107,9 +1081,9 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 				// Draw near plane cap
 				nStartIndex = m_clampedPortalMeshRenderInfos[ portalsRenderablesToDrawVBIndex[i] ].nStartIndex;
 				nIndexCount = m_clampedPortalMeshRenderInfos[ portalsRenderablesToDrawVBIndex[i] ].nIndexCount;
-				pRenderContext->OverrideDepthEnable( true, true );
+				pRenderContext->OverrideDepthEnable( true, true, false );
 				pPortalQuadMesh->Draw( nStartIndex, nIndexCount );
-				pRenderContext->OverrideDepthEnable( false, true );
+				pRenderContext->OverrideDepthEnable( false, true, true );
 			}
 		}
 
@@ -1187,11 +1161,7 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 				flMaxX = flViewportWidth * flMaxX + flViewportWidth + flViewportX;
 				flMinY = flViewportHeight * flMinY + flViewportHeight + flViewportY;
 				flMaxY = flViewportHeight * flMaxY + flViewportHeight + flViewportY;
-#if 0			// Portal 2
 				pRenderContext->PushScissorRect( int( flMinX ), int( flMinY ), int( flMaxX ), int( flMaxY ) );
-#else			// Swarm
-				pRenderContext->SetScissorRect( int( flMinX ), int( flMinY ), int( flMaxX ), int( flMaxY ), true );
-#endif
 				bPushedScissor = true;
 			}
 		}
@@ -1269,20 +1239,16 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 
 			if ( pPortalQuadMesh == NULL )
 			{
-#ifdef USE_VISDATA
 				Assert( m_pCachedPortalQuadMeshData );
-#endif
 				pPortalQuadMesh = pRenderContext->GetDynamicMeshEx( m_portalQuadMeshVertexFmt );
-#ifdef USE_VISDATA
 				pPortalQuadMesh->ReconstructFromCachedPerFrameMeshData( m_pCachedPortalQuadMeshData );
-#endif
 			}
 
 			pRenderContext->Bind( (IMaterial*)( const IMaterial *)( m_MaterialsAccess.m_WriteZ_Model ), static_cast< CPortalRenderable_FlatBasic* >( pCurrentPortal )->GetClientRenderable() );
 
 			int nStartIndex = portalsRenderablesToDrawVBIndex[i] * 6;
 			int nIndexCount = 6;
-			pRenderContext->OverrideDepthEnable( true, true );	// Force depth writes on, but depth test off
+			pRenderContext->OverrideDepthEnable( true, true, false );	// Force depth writes on, but depth test off
 			pPortalQuadMesh->Draw( nStartIndex, nIndexCount );
 			if ( ( m_iViewRecursionLevel == 0 ) && ( m_clampedPortalMeshRenderInfos[ portalsRenderablesToDrawVBIndex[i] ].nStartIndex >= 0 ) )
 			{
@@ -1291,7 +1257,7 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 				nIndexCount = m_clampedPortalMeshRenderInfos[ portalsRenderablesToDrawVBIndex[i] ].nIndexCount;
 				pPortalQuadMesh->Draw( nStartIndex, nIndexCount );
 			}
-			pRenderContext->OverrideDepthEnable( false, true );
+			pRenderContext->OverrideDepthEnable( false, true, true );
 
 			pRenderContext->EndPIXEvent();
 		}
@@ -1304,7 +1270,7 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 
 		if ( bPushedScissor )
 		{
-			//pRenderContext->PopScissorRect();
+			pRenderContext->PopScissorRect();
 		}
 	}
 
@@ -1357,13 +1323,9 @@ bool CPortalRender::DrawPortalsUsingStencils( CViewRender *pViewRender )
 
 	if ( pPortalQuadMesh == NULL )
 	{
-#ifdef USE_VISDATA
 		Assert( m_pCachedPortalQuadMeshData );
-#endif
 		pPortalQuadMesh = pRenderContext->GetDynamicMeshEx( m_portalQuadMeshVertexFmt );
-#ifdef USE_VISDATA
 		pPortalQuadMesh->ReconstructFromCachedPerFrameMeshData( m_pCachedPortalQuadMeshData );
-#endif
 	}
 
 	RenderPortalEffects( pRenderContext, pPortalQuadMesh, actualActivePortals, actualActivePortalQuadVBIndex );

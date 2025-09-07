@@ -31,9 +31,9 @@ const studiohdr_t *virtualgroup_t::GetStudioHdr( ) const
 }
 
 
-byte *studiohdr_t::GetAnimBlock( int iBlock ) const
+byte *studiohdr_t::GetAnimBlock( int iBlock, bool preloadIfMissing ) const
 {
-	return modelinfo->GetAnimBlock( this, iBlock );
+	return modelinfo->GetAnimBlock( this, iBlock, preloadIfMissing );
 }
 
 int	studiohdr_t::GetAutoplayList( unsigned short **pOut ) const

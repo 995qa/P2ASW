@@ -1,28 +1,42 @@
 "GameInfo"
 {
-	"game"		"Portal 2 In Alien Swarm"
-	"title"		"    "	// asw - leave this blank as we have a texture logo
-	"type"		"multiplayer_only"
-	GameData	"portal2.fgd"
-	InstancePath "tilegen/instances/"
-	
-	SupportsDX8     0
-	
-	"FileSystem"
+	game 		"Portal 2 Code Mod Base" // Window title and Steam client name
+	GameData	"portal2.fgd"            // Used for VBSP to collapse instances
+
+	SupportsDX8     0 // No DX8 in Portal 2. If 1, studiomdl will build DX8 meshes
+	SupportsXbox360 0 // No Xbox 360 support in Portal 2 mods, this is 1 in the original game
+	                  // If 1, vtex will build .pwl.vtf files
+
+	FileSystem
 	{
-		"SteamAppId"	"630"
-		"ToolsAppId"	"211"
-		
-		"SearchPaths"
+		SteamAppId				620		// Tells Steam this is a Portal 2 mod
+
+		//
+		// The code that loads this file automatically does a few things here:
+		//
+		// 1. For each "Game" search path, it adds a "GameBin" path, in <dir>\bin
+		// 2. On a non-English machine, for each "Game" search path, it adds another "Game" path in front of it with _<langage> at the end.
+		//    For example: c:\hl2\cstrike on a French machine would get a c:\hl2\cstrike_french path added to it.
+		// 3. For the first "Game" search path, it adds a search path called "MOD".
+		// 4. For the first "Game" search path, it adds a search path called "DEFAULT_WRITE_PATH".
+		//
+
+		//
+		// Search paths are relative to the base directory, which is where the game executable is found.
+		//
+		// |gameinfo_path| points at the directory where gameinfo.txt is.
+		// We always want to mount that directory relative to gameinfo.txt, so
+		// people can mount stuff in c:\mymod, and the main game resources are in
+		// someplace like c:\program files\steam\steamapps\half-life 2.
+		//
+
+		SearchPaths
 		{
-			"Game"	"|gameinfo_path|."
-			// Portal 2 code mounts this, but it isn't used by Valve
-			"Game"	"../Portal 2/xlsppatch"
-			"Game"	"../Portal 2/update"
-			"Game"	"../Portal 2/portal2_dlc2"
-			"Game"	"../Portal 2/portal2_dlc1"
-			"Game"	"../Portal 2/portal2"
-			"Game"	"platform"
+			Game	|gameinfo_path|.
+
+			// This should mount xlsppatch + update + DLC folders automatically in portal 2
+			Game	"../Portal 2/portal2"
+			Game    "platform"
 		}
 	}
 }

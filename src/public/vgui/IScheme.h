@@ -53,6 +53,8 @@ public:
 		int _min;
 		int _max;
 	};
+	
+	virtual ~IScheme() {} // p2port: Emulsion only
 
 	// gets a string from the default settings section
 	virtual const char *GetResourceString(const char *stringName) = 0;

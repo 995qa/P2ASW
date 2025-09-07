@@ -1048,6 +1048,7 @@ C_BaseEntity::C_BaseEntity() :
 	m_bSimulatedEveryTick = false;
 	m_bAnimatedEveryTick = false;
 	m_pPhysicsObject = NULL;
+	m_bDisableSimulationFix = false;
 
 #ifdef _DEBUG
 	m_vecAbsOrigin = vec3_origin;
@@ -3024,6 +3025,80 @@ void C_BaseEntity::PostDataUpdate( DataUpdateType_t updateType )
 	{
 		UpdateVisibility();
 	}
+}
+
+static ConVar cl_simulationtimefix( "cl_simulationtimefix", "1", FCVAR_DEVELOPMENTONLY );
+void C_BaseEntity::OnSimulationTimeChanging( float flPreviousSimulationTime, float flNextSimulationTime )
+{
+	if ( m_bDisableSimulationFix )
+		return;
+
+	if ( !cl_simulationtimefix.GetBool() )
+	{
+		return;
+	}
+
+	if ( GetPredictable() || IsClientCreated() )
+	{
+		return;
+	}
+
+	if ( !ShouldDraw() )
+	{
+		return;
+	}
+
+	// If the m_flSimulationTime is changing faster than or in lockstep with the interpolation amount, then never do a fixup
+	float flOriginInterpolationAmount = m_iv_vecOrigin.GetInterpolationAmount();
+	float dtSimulationTimestamps = ROUND_TO_TICKS( flNextSimulationTime - flPreviousSimulationTime );
+	if ( dtSimulationTimestamps <= flOriginInterpolationAmount )
+		return;
+
+	// In the worst case (w/o packet loss) the engine could hit a slow frame and have to run off 0.1 (MAX_FRAMETIME) seconds worth of ticks.
+	// Thus, something moving would get new m_flSimulationTime sample up to ROUND_TO_TICKS( 0.1f ) seconds from the previous time which
+	//  is longer than the interpolation interval but still considered "smooth" and continuous motion.  We don't want to mess that case up, so what we
+	//  do is to see how far in the past the previous packet time stamp was and if the simulation time delta is even greater than that only then do we 
+	//  add some fixup samples.
+
+	// Since we haven't called PostDataUpdate, m_flLastMessageTime is the timestamp of the last packet containing this entity and engine->GetLastTimeStamp() is the timestamp of the currently being 
+	//  processed packet
+	// TBD:  Avoid the call into the engine-> virtual interface!!!
+	float dtFromLastPacket = ROUND_TO_TICKS( engine->GetLastTimeStamp() - m_flLastMessageTime );
+
+	// If the m_flSimulationTime time will have changed more quickly than the timestamps of the last two packets received, also skip fixup
+	if ( dtSimulationTimestamps <= dtFromLastPacket )
+		return;
+
+	// Worst case backfill is 100 msecs (default multiplayer interpolation amount)
+	float flSampleBackFillMaxTime = ROUND_TO_TICKS( 0.1f );
+
+	m_iv_vecOrigin.RestoreToLastNetworked();
+	m_iv_angRotation.RestoreToLastNetworked();
+
+	float flTimeBeforeWhichToLeaveOldSamples = flPreviousSimulationTime + TICK_INTERVAL * 0.5f;
+
+	for ( float simtime = flNextSimulationTime - flSampleBackFillMaxTime;  
+		  simtime < flNextSimulationTime; 
+		  simtime += TICK_INTERVAL )
+	{
+		// Don't stomp preexisting data, though
+		if ( simtime < flTimeBeforeWhichToLeaveOldSamples )
+			continue;
+
+		m_iv_vecOrigin.NoteChanged( gpGlobals->curtime, simtime, false );
+		m_iv_angRotation.NoteChanged( gpGlobals->curtime, simtime, false );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Latch simulation values when the entity has not changed
+//-----------------------------------------------------------------------------
+void C_BaseEntity::OnDataUnchangedInPVS()
+{
+	Assert( m_hNetworkMoveParent.Get() || !m_hNetworkMoveParent.IsValid() );
+	HierarchySetParent(m_hNetworkMoveParent);
+	
+	MarkMessageReceived();
 }
 
 //-----------------------------------------------------------------------------
@@ -5534,6 +5609,98 @@ void C_BaseEntity::ShiftFirstPredictedIntermediateDataForward( int slots_to_remo
 
 	m_nIntermediateData_FirstPredictedShiftMarker -= slots_to_remove;
 	
+#endif
+}
+
+
+//-----------------------------------------------------------------------------
+// Purpose: For a predicted entity that is physically simulated, compensate for the prediction frames being coupled to player commands
+//			by shifting them around if there's an unequal number of ticks and player commands executed on the server
+// Input  : delta - number of server ticks elapsed minus the number of player commands acknowledged
+//			last_slot - the number of valid frames currently stored in m_pIntermediateData
+//-----------------------------------------------------------------------------
+void C_BaseEntity::ShiftIntermediateData_TickAdjust( int delta, int last_slot )
+{
+#if !defined( NO_ENTITY_PREDICTION )
+	Assert( m_pIntermediateData );
+	if ( !m_pIntermediateData || (last_slot == 0) )
+		return;
+
+	//Warning( "C_BaseEntity::ShiftIntermediateData_TickAdjust( %f ) delta: %i  last: %i\n", gpGlobals->curtime, delta, last_slot );
+
+	if( delta > last_slot )
+	{
+		delta = last_slot;
+	}
+	else if( delta < -last_slot )
+	{
+		return; //acknowledged more commands than we predicted. Won't be restoring frames anyway
+	}
+
+	//Warning( "\t" );
+
+	size_t allocsize = GetIntermediateDataSize();
+
+#if defined( DBGFLAG_ASSERT ) && 1
+	// Remember starting configuration
+	byte *debugCheck[ ARRAYSIZE( m_pIntermediateData ) ];
+	memcpy( debugCheck, m_pIntermediateData, ARRAYSIZE( m_pIntermediateData ) * sizeof( byte * ) );
+#endif
+
+	byte *saved[ ARRAYSIZE( m_pIntermediateData ) ];
+	memcpy( saved, m_pIntermediateData, last_slot * sizeof( byte * ) );
+
+	if( delta < 0 ) //more commands acknowledged than ticks run, slots indices should increment in value by negative delta
+	{
+		int i = 0;
+		int iStop = last_slot + delta;
+		for( ; i < iStop; ++i )
+		{
+			//Warning( "%i<-%i,", i - delta, i );
+			m_pIntermediateData[i - delta] = saved[i];
+		}
+
+		for( ; i < last_slot; ++i )
+		{
+			//Warning( "%i<-%i,", i - iStop, i );
+			m_pIntermediateData[i - iStop] = saved[i];
+			memcpy( m_pIntermediateData[i - iStop], saved[0], allocsize ); //make duplicates of the first frame we have available
+		}
+	}
+	else //more ticks run than commands acknowledged, slot indices should decrement by delta
+	{
+		int i = 0;
+		int iStop = last_slot - delta;
+		for( ; i < iStop; ++i )
+		{
+			//Warning( "%i<-%i,", i, i + delta );
+			m_pIntermediateData[i] = saved[i + delta];
+		}
+
+		for( ; i < last_slot; ++i )
+		{
+			//Warning( "%i<-%i,", i, i - iStop );
+			m_pIntermediateData[i] = saved[i - iStop];
+			memcpy( m_pIntermediateData[i], saved[last_slot - 1], allocsize ); //make duplicates of the last frame we have available
+		}
+	}
+
+	//Warning( "\n" );
+
+#if defined( DBGFLAG_ASSERT ) && 1
+	for( int i = 0; i < ARRAYSIZE( m_pIntermediateData ); ++i )
+	{
+		int j = 0;
+		for( ; j < ARRAYSIZE( m_pIntermediateData ); ++j )
+		{
+			if( m_pIntermediateData[i] == debugCheck[j] )
+				break;
+		}
+
+		Assert( j != ARRAYSIZE( m_pIntermediateData ) );
+	}
+#endif
+
 #endif
 }
 

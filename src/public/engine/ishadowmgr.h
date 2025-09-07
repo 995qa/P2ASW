@@ -77,6 +77,7 @@ enum ShadowCreateFlags_t
 	SHADOW_CACHE_VERTS			= ( 1 << 0 ),
 	SHADOW_FLASHLIGHT			= ( 1 << 1 ),
 	SHADOW_SIMPLE_PROJECTION	= ( 1 << 2 ),
+	SHADOW_ANY_SPLITSCREEN_SLOT = ( 1 << 3 ),
 
 	SHADOW_LAST_FLAG = SHADOW_SIMPLE_PROJECTION,
 };
@@ -189,7 +190,6 @@ public:
 	virtual const FlashlightState_t &GetFlashlightState( ShadowHandle_t handle ) = 0;
 
 	virtual void SetFlashlightRenderState( ShadowHandle_t handle ) = 0;
-	virtual void EndFlashlightRenderState( ShadowHandle_t handle ) = 0;
 
 	virtual void DrawVolumetrics() = 0;
 
@@ -221,6 +221,13 @@ public:
 	virtual void RemoveAllDecalsFromShadow( ShadowHandle_t handle ) = 0;
 
 	virtual void SkipShadowForEntity( int nEntIndex ) = 0;
+
+	//designed for portal usage. Recursive drawing leaves the scissor rect in a bad state for translucents
+	virtual void PushFlashlightScissorBounds( void ) = 0;
+	virtual void PopFlashlightScissorBounds( void ) = 0;
+
+	// Disables projected shadows
+	virtual void DisableDropShadows() = 0;
 };
 
 

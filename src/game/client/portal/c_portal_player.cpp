@@ -37,7 +37,7 @@
 
 
 #include "igamemovement.h"
-#include "paint/c_weapon_paintgun.h"
+#include "c_weapon_paintgun.h"
 #include "c_weapon_portalgun.h"
 
 #include "cam_thirdperson.h"
@@ -1828,7 +1828,7 @@ void C_Portal_Player::PreThink( void )
 	BaseClass::PreThink();
 
 	// Cache the velocity before impact
-	if( HASPAINTMAP )
+	if( engine->HasPaintmap() )
 		m_PortalLocal.m_vPreUpdateVelocity = GetAbsVelocity();
 
 	// Update the painted power

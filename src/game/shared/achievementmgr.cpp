@@ -120,7 +120,7 @@ bool CAchievementMgr::Init()
 	// We can be created on either client (for multiplayer games) or server
 	// (for single player), so register ourselves with the engine so UI has a uniform place 
 	// to go get the pointer to us
-
+#if 0 // p2port: no achievement manager in Emulsion
 #ifdef _DEBUG
 	// There can be only one achievement manager instance; no one else should be registered
 	IAchievementMgr *pAchievementMgr = engine->GetAchievementMgr();
@@ -129,7 +129,7 @@ bool CAchievementMgr::Init()
 
 	// register ourselves
 	engine->SetAchievementMgr( this );
-
+#endif
 	// register for events
 #ifdef GAME_DLL
 	ListenForGameEvent( "entity_killed" );
@@ -1736,24 +1736,29 @@ void CAchievementMgr::ResetAchievement_Internal( CBaseAchievement *pAchievement 
 
 void MsgFunc_AchievementEvent( bf_read &msg )
 {
+#if 0 // p2port: no achievement manager in Emulsion
 	int iAchievementID = (int) msg.ReadShort();
 	CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 	if ( !pAchievementMgr )
 		return;
 	pAchievementMgr->OnAchievementEvent( iAchievementID, STEAM_PLAYER_SLOT );
+#endif
 }
 
 #ifdef _DEBUG
 CON_COMMAND_F( achievement_reset_all, "Clears all achievements", FCVAR_CHEAT )
 {
+#if 0 // p2port: no achievement manager in Emulsion
 	CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 	if ( !pAchievementMgr )
 		return;
 	pAchievementMgr->ResetAchievements();
+#endif
 }
 
 CON_COMMAND_F( achievement_reset, "<internal name> Clears specified achievement", FCVAR_CHEAT )
 {
+#if 0 // p2port: no achievement manager in Emulsion
 	CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 	if ( !pAchievementMgr )
 		return;
@@ -1770,19 +1775,22 @@ CON_COMMAND_F( achievement_reset, "<internal name> Clears specified achievement"
 		return;
 	}
 	pAchievementMgr->ResetAchievement( pAchievement->GetAchievementID() );
-
+#endif
 }
 
 CON_COMMAND_F( achievement_status, "Shows status of all achievement", FCVAR_CHEAT )
 {
+#if 0 // p2port: no achievement manager in Emulsion
 	CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 	if ( !pAchievementMgr )
 		return;
 	pAchievementMgr->PrintAchievementStatus();
+#endif
 }
 
 CON_COMMAND_F( achievement_unlock, "<internal name> Unlocks achievement", FCVAR_CHEAT )
 {
+#if 0 // p2port: no achievement manager in Emulsion
 	CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 	if ( !pAchievementMgr )
 		return;
@@ -1799,10 +1807,12 @@ CON_COMMAND_F( achievement_unlock, "<internal name> Unlocks achievement", FCVAR_
 		return;
 	}
 	pAchievementMgr->AwardAchievement( pAchievement->GetAchievementID(), STEAM_PLAYER_SLOT );
+#endif
 }
 
 CON_COMMAND_F( achievement_unlock_all, "Unlocks all achievements", FCVAR_CHEAT )
 {
+#if 0 // p2port: no achievement manager in Emulsion
 	CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 	if ( !pAchievementMgr )
 		return;
@@ -1816,10 +1826,12 @@ CON_COMMAND_F( achievement_unlock_all, "Unlocks all achievements", FCVAR_CHEAT )
 			pAchievementMgr->AwardAchievement( pAchievement->GetAchievementID(), STEAM_PLAYER_SLOT );
 		}
 	}	
+#endif
 }
 
 CON_COMMAND_F( achievement_evaluate, "<internal name> Causes failable achievement to be evaluated", FCVAR_CHEAT )
 {
+#if 0 // p2port: no achievement manager in Emulsion
 	CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 	if ( !pAchievementMgr )
 		return;
@@ -1842,10 +1854,12 @@ CON_COMMAND_F( achievement_evaluate, "<internal name> Causes failable achievemen
 	{
 		pFailableAchievement->OnEvaluationEvent();
 	}
+#endif
 }
 
 CON_COMMAND_F( achievement_test_friend_count, "Counts the # of teammates on local player's friends list", FCVAR_CHEAT )
 {
+#if 0 // p2port: no achievement manager in Emulsion
 	CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 	if ( !pAchievementMgr )
 		return;
@@ -1857,10 +1871,12 @@ CON_COMMAND_F( achievement_test_friend_count, "Counts the # of teammates on loca
 	int iMinFriends = atoi( args[1] );
 	bool bRet = CalcPlayersOnFriendsList( iMinFriends );
 	Msg( "You %s have at least %d friends in the game.\n", bRet ? "do" : "do not", iMinFriends );
+#endif
 }
 
 CON_COMMAND_F( achievement_test_clan_count, "Determines if specified # of teammates belong to same clan w/local player", FCVAR_CHEAT )
 {
+#if 0 // p2port: no achievement manager in Emulsion
 	CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 	if ( !pAchievementMgr )
 		return;
@@ -1873,14 +1889,17 @@ CON_COMMAND_F( achievement_test_clan_count, "Determines if specified # of teamma
 	int iClanPlayers = atoi( args[1] );
 	bool bRet = CalcHasNumClanPlayers( iClanPlayers );
 	Msg( "There %s %d players who you're in a Steam group with.\n", bRet ? "are" : "are not", iClanPlayers );
+#endif
 }
 
 CON_COMMAND_F( achievement_mark_dirty, "Mark achievement data as dirty", FCVAR_CHEAT )
 {
+#if 0 // p2port: no achievement manager in Emulsion
 	CAchievementMgr *pAchievementMgr = dynamic_cast<CAchievementMgr *>( engine->GetAchievementMgr() );
 	if ( !pAchievementMgr )
 		return;
 	pAchievementMgr->SetDirty( true, STEAM_PLAYER_SLOT );
+#endif
 }
 #endif // _DEBUG
 

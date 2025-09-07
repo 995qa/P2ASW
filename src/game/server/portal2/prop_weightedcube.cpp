@@ -1377,7 +1377,7 @@ void CPropWeightedCube::SchrodingerThink( void )
 void CPropWeightedCube::DisabledThink( void )
 {
 	bool hasPaintPower = false;
-	if( HASPAINTMAP )
+	if( engine->HasPaintmap() )
 	{
 		if( GetPaintedPower() != NO_POWER )
 		{

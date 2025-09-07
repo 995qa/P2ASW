@@ -19,6 +19,8 @@
 #include "tier2/resourceprecacher.h"
 #include "appframework/iappsystem.h"
 
+// p2port: Emulsion has an ifdef here that would include either "resourcesystem/iresourcesystem.h" or "tier2/resourceprecacher.h"
+
 //-----------------------------------------------------------------------------
 // Resource access control API
 //-----------------------------------------------------------------------------

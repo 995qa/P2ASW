@@ -43,6 +43,9 @@ public:
 	void SetParent( int parent );
 
 	static void OnCmdCondump();
+
+	virtual void Override( IGameConsole* pConsole ) {} //p2port: is this all?
+
 private:
 
 	bool m_bInitialized;

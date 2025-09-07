@@ -28,7 +28,7 @@ CAvatarImage::CAvatarImage( void )
 {
 	m_iTextureID = -1;
 	ClearAvatarSteamID();
-	m_SourceArtSize = k_EAvatarSize32x32;
+	m_SourceArtSize = eAvatarSmall;
 	m_pFriendIcon = NULL;
 	m_nX = 0;
 	m_nY = 0;
@@ -59,7 +59,7 @@ bool CAvatarImage::SetAvatarSteamID( CSteamID steamIDUser )
 	{
 		m_SteamID = steamIDUser;
 
-		int iAvatar = steamapicontext->SteamFriends()->GetFriendAvatar( steamIDUser, m_SourceArtSize );
+		int iAvatar = -1;//steamapicontext->SteamFriends()->GetFriendAvatar( steamIDUser, m_SourceArtSize );
 
 		/*
 		// See if it's in our list already
@@ -205,7 +205,7 @@ void CAvatarImagePanel::SetAvatarBySteamID( CSteamID *friendsID )
 	GetImage()->SetPos( iIndent, iIndent );
 	int wide = GetWide() - (iIndent*2);
 
-	((CAvatarImage*)GetImage())->SetAvatarSize( ( wide > 32 ) ? k_EAvatarSize64x64 : k_EAvatarSize32x32 );
+	((CAvatarImage*)GetImage())->SetAvatarSize( ( wide > 32 ) ? eAvatarMedium : eAvatarSmall);
 	((CAvatarImage*)GetImage())->SetAvatarSteamID( *friendsID );
 
 	GetImage()->SetSize( wide, GetTall()-(iIndent*2) );

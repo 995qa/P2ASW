@@ -85,6 +85,7 @@ CPropPaintBomb::~CPropPaintBomb( void )
 
 void CPropPaintBomb::Precache( void )
 {
+	PrecacheModel( BLOB_MODEL );
 	PrecacheModel( PAINT_BOMB_MODEL_NAME );
 	PrecacheModel( "models/props/futbol_gib01.mdl" );
 	PrecacheModel( "models/props/futbol_gib02.mdl" );
@@ -230,7 +231,7 @@ void DispatchDryBombParticleEffect( const Vector& pos, PaintPowerType paintType,
 }
 
 
-CEG_NOINLINE void CreatePaintBombExplosion( PaintPowerType paintType, const Vector& vecExplosionPos, bool bSpawnBlobs )
+void CreatePaintBombExplosion( PaintPowerType paintType, const Vector& vecExplosionPos, bool bSpawnBlobs )
 {
 	//Only do the particle effect if not spawning blobs
 	if( !bSpawnBlobs )
@@ -296,7 +297,7 @@ CEG_NOINLINE void CreatePaintBombExplosion( PaintPowerType paintType, const Vect
 			}
 		}
 #ifdef PORTAL2
-		CProp_Portal *pPortal = UTIL_Portal_TraceRay( ray, MASK_SHOT, &filter, &tr );
+		CPortal_Base2D *pPortal = UTIL_Portal_TraceRay( ray, MASK_SHOT, &filter, &tr );
 		if ( tr.fraction < flCleanserFraction && tr.m_pEnt != NULL && pPortal == NULL )
 #else
 		if ( tr.fraction < flCleanserFraction && tr.m_pEnt != NULL )
@@ -342,8 +343,6 @@ CEG_NOINLINE void CreatePaintBombExplosion( PaintPowerType paintType, const Vect
 		}
 	}
 }
-
-CEG_PROTECT_FUNCTION( CreatePaintBombExplosion );
 
 void CPropPaintBomb::Event_Killed( const CTakeDamageInfo &info )
 {
@@ -397,7 +396,7 @@ void CPropPaintBomb::InputSilentDissolve( inputdata_t &in )
 void CPropPaintBomb::InputDissolve( inputdata_t &in ) 
 { 
 #ifdef PORTAL2
-	CTriggerPortalCleanser::FizzleBaseAnimating( NULL, this );
+	//CTriggerPortalCleanser::FizzleBaseAnimating( NULL, this );
 #endif
 }
 
@@ -461,11 +460,10 @@ CON_COMMAND_F( ent_create_paint_bomb_speed, "Creates a paint bomb with the speed
 	CreatePaintBomb( SPEED_POWER );
 }
 
-// FIXME: Bring this back for DLC2
-//CON_COMMAND_F( ent_create_paint_bomb_reflect, "Creates a paint bomb with the reflect paint paint power", FCVAR_CHEAT )
-//{
-//	CreatePaintBomb( REFLECT_POWER );
-//}
+CON_COMMAND_F( ent_create_paint_bomb_reflect, "Creates a paint bomb with the reflect paint paint power", FCVAR_CHEAT )
+{
+	CreatePaintBomb( REFLECT_POWER );
+}
 
 CON_COMMAND_F( ent_create_paint_bomb_portal, "Creates a paint bomb with the portal paint paint power", FCVAR_CHEAT )
 {

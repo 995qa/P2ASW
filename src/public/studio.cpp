@@ -42,7 +42,7 @@ mstudioanimdesc_t &studiohdr_t::pAnimdesc( int i ) const
 // Purpose:
 //-----------------------------------------------------------------------------
 
-byte *mstudioanimdesc_t::pAnimBlock( int block, int index ) const
+byte *mstudioanimdesc_t::pAnimBlock( int block, int index, bool preloadIfMissing ) const
 {
 	if (block == -1)
 	{
@@ -53,7 +53,7 @@ byte *mstudioanimdesc_t::pAnimBlock( int block, int index ) const
 		return (((byte *)this) + index);
 	}
 
-	byte *pAnimBlock = pStudiohdr()->GetAnimBlock( block );
+	byte *pAnimBlock = pStudiohdr()->GetAnimBlock( block, preloadIfMissing );
 	if ( pAnimBlock )
 	{
 		return pAnimBlock + index;

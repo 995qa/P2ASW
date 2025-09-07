@@ -70,7 +70,34 @@ FORCEINLINE ret_type method const 									\
 virtual ret_type method const = 0;
 #endif
 
+//-----------------------------------------------------------------------------
+// Shadow filter types
+// Important notes: These enums directly correspond to combo indices.
+// If you change these, make the corresponding change in common_ps_fxc.h
+// Cheap ones are at the end on purpose, and are only run on ps2b
+// SHADOWFILTERMODE_DEFAULT must be 0.
+//-----------------------------------------------------------------------------
+enum ShadowFilterMode_t
+{
+	SHADOWFILTERMODE_DEFAULT = 0,
 
+	NVIDIA_PCF = 0,
+	ATI_NO_PCF_FETCH4 = 1,
+	NVIDIA_PCF_CHEAP = 2,
+	ATI_NOPCF = 3,
+
+	// Game consoles use a different set of combo indices to control shadow filtering.
+	GAMECONSOLE_NINE_TAP_PCF = 0,
+	GAMECONSOLE_SINGLE_TAP_PCF = 1,
+
+	// All modes >= SHADOWFILTERMODE_FIRST_CHEAP_MODE are considered the "cheap" modes.
+
+#if defined( _GAMECONSOLE )
+	SHADOWFILTERMODE_FIRST_CHEAP_MODE = GAMECONSOLE_SINGLE_TAP_PCF,
+#else
+	SHADOWFILTERMODE_FIRST_CHEAP_MODE = NVIDIA_PCF_CHEAP,
+#endif
+};
 
 //-----------------------------------------------------------------------------
 // Material system configuration
@@ -81,6 +108,7 @@ public:
 	virtual int	 GetFrameBufferColorDepth() const = 0;
 	virtual int  GetSamplerCount() const = 0;
 	virtual bool HasSetDeviceGammaRamp() const = 0;
+	DEFCONFIGMETHOD( bool, SupportsStaticControlFlow(), true );
 	virtual VertexCompressionType_t SupportsCompressedVertices() const = 0;
 	virtual int  MaximumAnisotropicLevel() const = 0;	// 0 means no anisotropic filtering
 	virtual int  MaxTextureWidth() const = 0;
@@ -119,6 +147,8 @@ public:
 
 	// Does the card support sRGB reads/writes?
 	DEFCONFIGMETHOD( bool, SupportsSRGB(), true );
+	DEFCONFIGMETHOD( bool, FakeSRGBWrite(), false );
+	DEFCONFIGMETHOD( bool, CanDoSRGBReadFromRTs(), true );
 
 	virtual bool IsAAEnabled() const = 0;	// Is antialiasing being used?
 
@@ -137,8 +167,8 @@ public:
 	virtual int MaxViewports() const = 0;
 
 	virtual void OverrideStreamOffsetSupport( bool bOverrideEnabled, bool bEnableSupport ) = 0;
-
-	virtual int GetShadowFilterMode() const = 0;
+	
+	virtual ShadowFilterMode_t GetShadowFilterMode( bool bForceLowQualityShadows, bool bPS30 ) const = 0;
 
 	virtual int NeedsShaderSRGBConversion() const = 0;
 
@@ -175,6 +205,8 @@ public:
 #if defined ( STDSHADER_DBG_DLL_EXPORT ) || defined( STDSHADER_DX9_DLL_EXPORT )
 	inline bool SupportsPixelShaders_2_b() const { return GetDXSupportLevel() >= 92; }
 #endif
+	
+	virtual float GetLightMapScaleFactor() const = 0;
 };
 
 #endif // IMATERIALSYSTEMHARDWARECONFIG_H

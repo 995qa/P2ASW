@@ -18,6 +18,8 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+IMPLEMENT_AUTO_LIST( ITriggerCatapultAutoList )
+
 const char *CTriggerCatapult::s_szPlayerPassesTriggerFiltersThinkContext = "CTriggerCatapult::PlayerPassesTriggerFiltersThink";
 
 extern ConVar catapult_physics_drag_boost;

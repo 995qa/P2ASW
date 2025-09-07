@@ -96,6 +96,16 @@ public:
 #if defined( _X360 ) && defined( _DEMO )
 	virtual void OnDemoTimeout( void ) = 0;
 #endif
+	
+	virtual bool LoadingProgressWantsIsolatedRender( bool bContextValid ) = 0;
+
+	virtual bool IsPlayingFullScreenVideo() = 0;
+
+	virtual bool IsTransitionEffectEnabled() = 0;
+
+	virtual bool IsInLevel() = 0;
+
+	virtual void RestoreTopLevelMenu() = 0;
 };
 
 #define GAMEUI_INTERFACE_VERSION "GameUI011"

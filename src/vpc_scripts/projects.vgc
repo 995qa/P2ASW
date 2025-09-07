@@ -73,3 +73,8 @@ $Project "matchmakingbase_ds"
 {
 	"matchmaking/matchmaking_base_ds.vpc" [($OSXALL || $DEDICATED || $WINDOWS||$POSIX))]
 }
+
+$Project "tier1"
+{
+	"tier1\tier1.vpc"
+}

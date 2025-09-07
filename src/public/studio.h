@@ -782,7 +782,7 @@ struct mstudioanimdesc_t
 
 	int					animblock;
 	int					animindex;	 // non-zero when anim data isn't in sections
-	byte *pAnimBlock( int block, int index ) const; // returns pointer to a specific anim block (local or external)
+	byte *pAnimBlock( int block, int index, bool preloadIfMissing = true) const; // returns pointer to a specific anim block (local or external)
 	byte *pAnim( int *piFrame, float &flStall ) const; // returns pointer to data and new frame index
 	byte *pAnim( int *piFrame ) const; // returns pointer to data and new frame index
 
@@ -1415,7 +1415,7 @@ struct mstudiomesh_t
 
 	mstudio_meshvertexdata_t vertexdata;
 
-	int					unused[8]; // remove as appropriate
+	int					unused[6]; // remove as appropriate
 
 	mstudiomesh_t(){}
 private:
@@ -1459,7 +1459,7 @@ struct mstudiomodel_t
 
 	mstudio_modelvertexdata_t vertexdata;
 
-	int					unused[8];		// remove as appropriate
+	int					unused[7];		// remove as appropriate
 };
 
 inline bool mstudio_modelvertexdata_t::HasTangentData( void ) const 
@@ -1633,6 +1633,9 @@ struct studioloddata_t
 	IMaterial			**ppMaterials; /* will have studiohdr_t.numtextures elements allocated */
 	// hack - this needs to go away.
 	int					*pMaterialFlags; /* will have studiohdr_t.numtextures elements allocated */
+#ifndef _CERT
+	int					m_NumFaces;	/* Total face count for this LOD */
+#endif // !_CERT
 
 	// For decals on hardware morphing, we must actually do hardware skinning
 	// For this to work, we have to hope that the total # of bones used by
@@ -1647,7 +1650,7 @@ struct studiohwdata_t
 	int					m_NumLODs;
 	studioloddata_t		*m_pLODs;
 	int					m_NumStudioMeshes;
-
+	
 	inline float LODMetric( float unitSphereSize ) const { return ( unitSphereSize != 0.0f ) ? (100.0f / unitSphereSize) : 0.0f; }
 	inline int GetLODForMetric( float lodMetric ) const
 	{
@@ -1666,6 +1669,30 @@ struct studiohwdata_t
 
 		return numLODs-1;
 	}
+
+#ifndef _CERT
+	// Each model counts how many rendered faces it accounts for each frame:
+	inline void UpdateFacesRenderedCount( studiohdr_t *pStudioHdr, CUtlHash< studiohwdata_t * > &hwDataHash, int nLOD, int nInstances, int nFacesOverride = -1 )
+	{
+		if ( hwDataHash.Find( this ) == hwDataHash.InvalidHandle() )
+		{
+			m_NumFacesRenderedThisFrame = 0;
+			m_NumTimesRenderedThisFrame = 0;
+			m_pStudioHdr = pStudioHdr;
+			hwDataHash.Insert( this );
+		}
+		Assert( m_pStudioHdr && ( m_pStudioHdr == pStudioHdr ) );
+		if ( nFacesOverride == -1 ) 
+		{
+			nFacesOverride = ( nLOD < m_NumLODs ) ? m_pLODs[ nLOD ].m_NumFaces : 0;
+		}
+		m_NumFacesRenderedThisFrame += nInstances * nFacesOverride;
+		m_NumTimesRenderedThisFrame ++;
+	}
+	int m_NumFacesRenderedThisFrame;
+	int m_NumTimesRenderedThisFrame;
+	studiohdr_t *m_pStudioHdr; // There is no way to map between these inside CStudioRender, so we have to store it.
+#endif // !_CERT
 };
 
 // ----------------------------------------------------------
@@ -1965,8 +1992,8 @@ struct vertexStreamFileHeader_t
 	DECLARE_BYTESWAP_DATADESC();
 	int		id;								// MODEL_STREAM_FILE_ID
 	int		version;						// MODEL_STREAM_FILE_VERSION
-	long	checksum;						// same as studiohdr_t, ensures sync
-	long	flags;							// flags
+	int		checksum;						// same as studiohdr_t, ensures sync
+	int		flags;							// flags
 	int		numVerts;						// number of vertices
 	int		uv2StreamStart;					// offset from base to uv2 stream
 	int		uv2ElementSize;					// size of each uv2 element
@@ -2004,7 +2031,7 @@ struct vertexFileHeader_t
 	DECLARE_BYTESWAP_DATADESC();
 	int		id;								// MODEL_VERTEX_FILE_ID
 	int		version;						// MODEL_VERTEX_FILE_VERSION
-	long	checksum;						// same as studiohdr_t, ensures sync
+	int		checksum;						// same as studiohdr_t, ensures sync
 	int		numLODs;						// num of valid lods
 	int		numLODVertexes[MAX_NUM_LODS];	// num verts for desired root lod
 	int		numFixups;						// num of vertexFileFixup_t
@@ -2190,7 +2217,7 @@ struct studiohdr_t
 	int					id;
 	int					version;
 
-	long				checksum;		// this has to be the same in the phy and vtx files to load!
+	int				checksum;		// this has to be the same in the phy and vtx files to load!
 	
 	inline const char *	pszName( void ) const { if (studiohdr2index && pStudioHdr2()->pszName()) return pStudioHdr2()->pszName(); else return name; }
 	char				name[64];
@@ -2211,7 +2238,7 @@ struct studiohdr_t
 
 	int					numbones;			// bones
 	int					boneindex;
-	inline mstudiobone_t *pBone( int i ) const { Assert( i >= 0 && i < numbones); return (mstudiobone_t *)(((byte *)this) + boneindex) + i; };
+	inline const mstudiobone_t *pBone( int i ) const { Assert( i >= 0 && i < numbones); return (mstudiobone_t *)(((byte *)this) + boneindex) + i; };
 	int					RemapSeqBone( int iSequence, int iLocalBone ) const;	// maps local sequence bone to global bone
 	int					RemapAnimBone( int iAnim, int iLocalBone ) const;		// maps local animations bone to global bone
 
@@ -2395,7 +2422,7 @@ struct studiohdr_t
 	int					animblockindex;
 	inline mstudioanimblock_t *pAnimBlock( int i ) const { Assert( i > 0 && i < numanimblocks); return (mstudioanimblock_t *)(((byte *)this) + animblockindex) + i; };
 	mutable void		*animblockModel;
-	byte *				GetAnimBlock( int i ) const;
+	byte *				GetAnimBlock( int i, bool preloadIfMissing = true ) const;
 
 	int					bonetablebynameindex;
 	inline const byte	*GetBoneTableSortedByName() const { return (byte *)this + bonetablebynameindex; }
@@ -2507,7 +2534,7 @@ private:
 
 public:
 	inline int			numbones( void ) const { return m_pStudioHdr->numbones; };
-	inline mstudiobone_t *pBone( int i ) const { return m_pStudioHdr->pBone( i ); };
+	inline const mstudiobone_t *pBone( int i ) const { return m_pStudioHdr->pBone( i ); };
 	int					RemapAnimBone( int iAnim, int iLocalBone ) const;		// maps local animations bone to global bone
 	int					RemapSeqBone( int iSequence, int iLocalBone ) const;	// maps local sequence bone to global bone
 

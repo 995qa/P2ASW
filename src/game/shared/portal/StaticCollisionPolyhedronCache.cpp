@@ -118,15 +118,14 @@ void CStaticCollisionPolyhedronCache::Clear( void )
 static CPolyhedron *ConvertBrushToPolyhedron( int iBrushNumber, int iContentsMask, bool bTempPolyhedron )
 {
 	int iBrushContents = 0;
-	CUtlVector<BrushSideInfo_t> brushSides;
-	enginetrace->GetBrushInfo( iBrushNumber, &brushSides, &iBrushContents );
-	int iPlanesNeeded = brushSides.Count();
+	int iPlanesNeeded = -enginetrace->GetBrushInfo( iBrushNumber, iBrushContents, NULL, 0 );
 	if( (iPlanesNeeded == 0) || ((iContentsMask & iBrushContents) == 0) )
 		return NULL;
 
 	uint8 *pMemory;
 	void *pDeleteMemory;
 	float *fStackPlanes;
+	BrushSideInfo_t *brushSides;
 	size_t iMemoryNeeded = iPlanesNeeded * ((sizeof( float ) * 4) + sizeof( BrushSideInfo_t ));
 
 	if( iMemoryNeeded < (64 * 1024) )
@@ -143,10 +142,8 @@ static CPolyhedron *ConvertBrushToPolyhedron( int iBrushNumber, int iContentsMas
 
 
 	fStackPlanes = (float *)pMemory;
-
-	enginetrace->GetBrushInfo( iBrushNumber, &brushSides, &iBrushContents );
-
-	int iPlaneCount = brushSides.Count();
+	brushSides = (BrushSideInfo_t *)(pMemory + (iPlanesNeeded * (sizeof( float ) * 4)));
+	int iPlaneCount = enginetrace->GetBrushInfo( iBrushNumber, iBrushContents, brushSides, iPlanesNeeded );
 
 	CPolyhedron *pRetVal = NULL;
 	Assert( iPlaneCount == iPlanesNeeded );
@@ -154,10 +151,10 @@ static CPolyhedron *ConvertBrushToPolyhedron( int iBrushNumber, int iContentsMas
 	{
 		for( int i = 0; i != iPlaneCount; ++i )
 		{
-			fStackPlanes[(i * 4) + 0] = brushSides[i].plane.x;
-			fStackPlanes[(i * 4) + 1] = brushSides[i].plane.y;
-			fStackPlanes[(i * 4) + 2] = brushSides[i].plane.z;
-			fStackPlanes[(i * 4) + 3] = brushSides[i].plane.w;
+			fStackPlanes[(i * 4) + 0] = brushSides[i].plane.normal.x;
+			fStackPlanes[(i * 4) + 1] = brushSides[i].plane.normal.y;
+			fStackPlanes[(i * 4) + 2] = brushSides[i].plane.normal.z;
+			fStackPlanes[(i * 4) + 3] = brushSides[i].plane.dist;
 		}
 
 		pRetVal = GeneratePolyhedronFromPlanes( fStackPlanes, iPlaneCount, (1.0f/16.0f), bTempPolyhedron );
@@ -198,12 +195,12 @@ void CStaticCollisionPolyhedronCache::Update( void )
 	//brushes
 	if( sv_portal_staticcollisioncache_cachebrushes.GetBool() )
 	{
-		int iBrush = 0;
-		CUtlVector<BrushSideInfo_t> brushsides;
+		int iBrush = 0;		
+		int iBrushContents;
 
 		CPolyhedron *pTempPolyhedron = ConvertBrushToPolyhedron( iBrush, MASK_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_MONSTERCLIP, true );
 
-		while( (pTempPolyhedron != NULL) || (enginetrace->GetBrushInfo( iBrush, &brushsides, NULL ) != 0) )
+		while( (pTempPolyhedron != NULL) || (enginetrace->GetBrushInfo( iBrush, iBrushContents, NULL, 0 ) != 0) )
 		{
 			if( pTempPolyhedron )
 			{

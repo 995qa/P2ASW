@@ -81,7 +81,6 @@ public:
 
 	// builds a localized formatted string
 	// uses the format strings first: %s1, %s2, ...  unicode strings (wchar_t *)
-	virtual void ConstructString(wchar_t *unicodeOuput, int unicodeBufferSizeInBytes, const wchar_t *formatString, int numFormatParameters, ...) = 0;
 	
 	// gets the values by the string index
 	virtual const char *GetNameByIndex(LocalizeStringIndex_t index) = 0;
@@ -124,6 +123,43 @@ public:
 	// Is called when any localization strings change
 	virtual void InstallChangeCallback( ILocalizationChangeCallback *pCallback ) = 0;
 	virtual void RemoveChangeCallback( ILocalizationChangeCallback *pCallback ) = 0;
+
+	virtual wchar_t* GetAsianFrequencySequence( const char * pLanguage ) = 0;
+
+	virtual const char *FindAsUTF8( const char *pchTokenName ) = 0;
+
+	// builds a localized formatted string
+	// uses the format strings first: %s1, %s2, ...  unicode strings (wchar_t *)
+	template < typename T >
+	void ConstructString( T *unicodeOuput, int unicodeBufferSizeInBytes, const T *formatString, int numFormatParameters, ...)
+	{
+		va_list argList;
+		va_start( argList, numFormatParameters );
+
+		ConstructStringVArgsInternal( unicodeOuput, unicodeBufferSizeInBytes, formatString, numFormatParameters, argList );
+
+		va_end( argList );
+	}
+
+	template < typename T >
+	void ConstructStringVArgs( T *unicodeOuput, int unicodeBufferSizeInBytes, const T *formatString, int numFormatParameters, va_list argList)
+	{
+		ConstructStringVArgsInternal( unicodeOuput, unicodeBufferSizeInBytes, formatString, numFormatParameters, argList );
+	}
+
+	template < typename T >
+	void ConstructString( T *unicodeOutput, int unicodeBufferSizeInBytes, const T *formatString, KeyValues *localizationVariables)
+	{
+		ConstructStringKeyValuesInternal( unicodeOutput, unicodeBufferSizeInBytes, formatString, localizationVariables );
+	}
+
+protected:
+	// internal "interface"
+	virtual void ConstructStringVArgsInternal(char *unicodeOutput, int unicodeBufferSizeInBytes, const char *formatString, int numFormatParameters, va_list argList) = 0;
+	virtual void ConstructStringVArgsInternal(wchar_t *unicodeOutput, int unicodeBufferSizeInBytes, const wchar_t *formatString, int numFormatParameters, va_list argList) = 0;
+
+	virtual void ConstructStringKeyValuesInternal(char *unicodeOutput, int unicodeBufferSizeInBytes, const char *formatString, KeyValues *localizationVariables) = 0;
+	virtual void ConstructStringKeyValuesInternal(wchar_t *unicodeOutput, int unicodeBufferSizeInBytes, const wchar_t *formatString, KeyValues *localizationVariables) = 0;
 };
 
 

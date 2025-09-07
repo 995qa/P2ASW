@@ -88,6 +88,7 @@ struct SoundInfo_t
 	int				nFlags;
 	int 			nSoundNum;
 	int				nSpeakerEntity;
+	int				nRandomSeed; // p2
 	soundlevel_t	Soundlevel;
 	bool			bIsSentence;
 	bool			bIsAmbient;
@@ -101,7 +102,7 @@ struct SoundInfo_t
 	}
 
 	void Set(int newEntity, int newChannel, const char *pszNewName, const Vector &newOrigin, const Vector& newDirection, 
-			float newVolume, soundlevel_t newSoundLevel, bool newLooping, int newPitch, const Vector &vecListenerOrigin, int speakerentity )
+			float newVolume, soundlevel_t newSoundLevel, bool newLooping, int newPitch, const Vector &vecListenerOrigin, int speakerentity, int nSeed )
 	{
 		nEntityIndex = newEntity;
 		nChannel = newChannel;
@@ -114,6 +115,7 @@ struct SoundInfo_t
 		nPitch = newPitch;
 		vListenerOrigin = vecListenerOrigin;
 		nSpeakerEntity = speakerentity;
+		nRandomSeed = nSeed;
 	}
 
 	void SetDefault()
@@ -130,6 +132,7 @@ struct SoundInfo_t
 		nSoundNum = 0;
 		nFlags = 0;
 		nSequenceNumber = 0;
+		nRandomSeed = 0;
 
 		pszName = NULL;
 	
@@ -382,6 +385,9 @@ struct SpatializationInfo_t
 	Vector				*pOrigin;
 	QAngle				*pAngles;
 	float				*pflRadius;
+
+	CUtlVector< Vector > *m_pUtlVecMultiOrigins;
+	CUtlVector< QAngle > *m_pUtlVecMultiAngles;
 };
 #pragma pack()
 

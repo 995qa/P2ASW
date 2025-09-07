@@ -327,6 +327,47 @@ void CRecipientFilter::RemoveSplitScreenPlayers()
 	}
 }
 
+// THIS FUNCTION IS SUFFICIENT FOR PORTAL2 SPECIFIC CIRCUMSTANCES
+// AND MAY OR MAY NOT FUNCTION AS EXPECTED WHEN USED WITH MULTIPLE
+// SPLITSCREEN CLIENTS NETWORKED TOGETHER, ETC.
+void CRecipientFilter::ReplaceSplitScreenPlayersWithOwners()
+{
+	// coop
+	if( gpGlobals->maxClients >= 2 ) 
+	{
+		int count = m_Recipients.Count();
+		CUtlVectorFixedGrowable<int, 4> playerOwners;
+		for( int i = 0; i < count; ++i )
+		{
+			// If this is a split screen player
+			CBasePlayer* pPlayer = UTIL_PlayerByIndex( m_Recipients[i] );
+			if( pPlayer && pPlayer->IsSplitScreenPlayer() )
+			{
+				// Add its owner to the recipients. If it doesn't exist, abort.
+				const CBasePlayer* pOwnerPlayer = pPlayer->GetSplitScreenPlayerOwner();
+				if( pOwnerPlayer )
+					playerOwners.AddToTail( pOwnerPlayer->entindex() );
+				else
+					return;
+			}
+		}
+
+		if( playerOwners.Count() > 0 )
+		{
+			// Remove all split screen players
+			RemoveSplitScreenPlayers();
+
+			// Add all owner players
+			count = m_Recipients.Count();
+			m_Recipients.EnsureCount( count + playerOwners.Count() );
+			V_memcpy( m_Recipients.Base() + count, playerOwners.Base(), playerOwners.Count() * sizeof( int ) );
+
+			// Remove duplicates
+			RemoveDuplicateRecipients();
+		}
+	}
+}
+
 bool CRecipientFilter::IsUsingPredictionRules( void ) const
 {
 	return m_bUsingPredictionRules;
@@ -447,5 +488,18 @@ void CPASAttenuationFilter::Filter( const Vector& origin, float attenuation /*= 
 				continue;
 		}
 		RemoveRecipient( player );
+	}
+}
+
+void CRecipientFilter::RemoveDuplicateRecipients()
+{
+	for( int i = 0; i < m_Recipients.Count(); ++i )
+	{
+		int currentElem = m_Recipients[i];
+		for( int j = m_Recipients.Count() - 1; j > i ; --j )
+		{
+			if( m_Recipients[j] == currentElem )
+				m_Recipients.FastRemove( j );
+		}
 	}
 }

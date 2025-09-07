@@ -100,7 +100,7 @@ static int s_iPortalSimulatorGUID = 0; //used in standalone function that have n
 #define TABSPACING
 #endif
 
-static void ConvertBrushListToClippedPolyhedronList( const int *pBrushes, int iBrushCount, const float *pOutwardFacingClipPlanes, int iClipPlaneCount, float fClipEpsilon, CUtlVector<CPolyhedron *> *pPolyhedronList );
+static void ConvertBrushListToClippedPolyhedronList( const uint32 *pBrushes, int iBrushCount, const float *pOutwardFacingClipPlanes, int iClipPlaneCount, float fClipEpsilon, CUtlVector<CPolyhedron *> *pPolyhedronList );
 static void ClipPolyhedrons( CPolyhedron * const *pExistingPolyhedrons, int iPolyhedronCount, const float *pOutwardFacingClipPlanes, int iClipPlaneCount, float fClipEpsilon, CUtlVector<CPolyhedron *> *pPolyhedronList );
 static inline CPolyhedron *TransformAndClipSinglePolyhedron( CPolyhedron *pExistingPolyhedron, const VMatrix &Transform, const float *pOutwardFacingClipPlanes, int iClipPlaneCount, float fCutEpsilon, bool bUseTempMemory );
 static int GetEntityPhysicsObjects( IPhysicsEnvironment *pEnvironment, CBaseEntity *pEntity, IPhysicsObject **pRetList, int iRetListArraySize );
@@ -402,7 +402,7 @@ void CPortalSimulator::MoveTo( const Vector &ptCenter, const QAngle &angles )
 
 extern ConVar sv_portal_new_player_trace;
 
-void CPortalSimulator::MovedOrResized( const Vector &ptCenter, const QAngle &qAngles, float fHalfWidth, float fHalfHeight )
+CEG_NOINLINE void CPortalSimulator::MovedOrResized( const Vector &ptCenter, const QAngle &qAngles, float fHalfWidth, float fHalfHeight )
 {
 	if( (fHalfWidth == 0.0f) || (fHalfHeight == 0.0f) || !ptCenter.IsValid() )
 	{
@@ -513,7 +513,7 @@ void CPortalSimulator::MovedOrResized( const Vector &ptCenter, const QAngle &qAn
 			convertconvexparams_t params;
 			params.Defaults();
 			params.buildOptimizedTraceTables = true;
-			//params.bUseFastApproximateInertiaTensor = true;
+			params.bUseFastApproximateInertiaTensor = true;
 			m_InternalData.Placement.pHoleShapeCollideable = physcollision->ConvertConvexToCollideParams( &pConvex, 1, params );
 		}
 
@@ -544,7 +544,7 @@ void CPortalSimulator::MovedOrResized( const Vector &ptCenter, const QAngle &qAn
 			fFarDists[3] = m_InternalData.Placement.vRight.Dot( m_InternalData.Placement.ptCenter + (m_InternalData.Placement.vRight * kReallyFar) );
 
 #ifdef CLIENT_DLL
-			//CEG_PROTECT_MEMBER_FUNCTION( CPortalSimulator_MovedOrResized );
+			CEG_PROTECT_MEMBER_FUNCTION( CPortalSimulator_MovedOrResized );
 #endif
 
 			const float kInnerCarve = 0.1f;
@@ -674,7 +674,7 @@ void CPortalSimulator::MovedOrResized( const Vector &ptCenter, const QAngle &qAn
 			convertconvexparams_t params;
 			params.Defaults();
 			params.buildOptimizedTraceTables = true;
-			//params.bUseFastApproximateInertiaTensor = true;
+			params.bUseFastApproximateInertiaTensor = true;
 			m_InternalData.Placement.pInvHoleShapeCollideable = physcollision->ConvertConvexToCollideParams( pInvHoleConvexes, 4, params );
 		
 			//m_InternalData.Placement.pAABBAngleTransformCollideable = physcollision->ConvertConvexToCollide( pAABBTransformConvexes, 4 );
@@ -1163,30 +1163,15 @@ static void CarveEntity( PS_PlacementData_t &PlacementData, PS_SD_Dynamic_Carved
 	}
 	else if( solidType == SOLID_BSP )
 	{
-		CCollisionProperty *pPropProperty = dynamic_cast<CCollisionProperty*>( pProp );
-
-		Vector vAABBMins;
-		Vector vAABBMaxs;
-		if ( pPropProperty )
-		{
-			pPropProperty->WorldSpaceAABB( &vAABBMins, &vAABBMaxs );
-		}
-		else
-		{
-			vAABBMins = pProp->OBBMins();
-			vAABBMaxs = pProp->OBBMaxs();
-		}
-
-		//CBrushQuery brushQuery;
-		CUtlVector<int> WorldBrushes;
-		enginetrace->GetBrushesInAABB( vAABBMins, vAABBMaxs, &WorldBrushes, MASK_SOLID_BRUSHONLY|CONTENTS_PLAYERCLIP|CONTENTS_MONSTERCLIP );
-		//enginetrace->GetBrushesInCollideable( pProp, brushQuery );
+		CBrushQuery brushQuery;
+		//enginetrace->GetBrushesInAABB( vAABBMins, vAABBMaxs, WorldBrushes, MASK_SOLID_BRUSHONLY|CONTENTS_PLAYERCLIP|CONTENTS_MONSTERCLIP );
+		enginetrace->GetBrushesInCollideable( pProp, brushQuery );
 
 		//create locally clipped polyhedrons for the world
 		{
 			CarvedRepresentation.UncarvedPolyhedronGroup.iStartIndex = CarvedEntities.Polyhedrons.Count();
-			int *pBrushList = WorldBrushes.Base();
-			int iBrushCount = WorldBrushes.Count();
+			uint32 *pBrushList = brushQuery.Base();
+			int iBrushCount = brushQuery.Count();
 			ConvertBrushListToClippedPolyhedronList( pBrushList, iBrushCount, NULL, 0, PORTAL_POLYHEDRON_CUT_EPSILON, &CarvedEntities.Polyhedrons );
 			CarvedRepresentation.UncarvedPolyhedronGroup.iNumPolyhedrons = CarvedEntities.Polyhedrons.Count() - CarvedRepresentation.UncarvedPolyhedronGroup.iStartIndex;
 		}
@@ -1257,7 +1242,7 @@ static void DestroyCollideable( CPhysCollide **ppCollide )
 	if ( *ppCollide )
 	{
 #if defined( GAME_DLL )
-		physcollision->DestroyCollide( *ppCollide );
+		physenv->DestroyCollideOnDeadObjectFlush( *ppCollide );
 #else
 		physcollision->DestroyCollide( *ppCollide );
 #endif
@@ -1306,7 +1291,7 @@ void CPortalSimulator::AddCarvedEntity( CBaseEntity *pEntity )
 	convertconvexparams_t params;
 	params.Defaults();
 	params.buildOptimizedTraceTables = true;
-	//params.bUseFastApproximateInertiaTensor = true;
+	params.bUseFastApproximateInertiaTensor = true;
 	//some immediate setup may be required
 	if( IsCollisionGenerationEnabled() && m_InternalData.Simulation.Dynamic.CarvedEntities.bCollisionExists )
 	{
@@ -2923,7 +2908,6 @@ void CPortalSimulator::CreateLocalCollision( void )
 	// Displacements
 	if ( portal_clone_displacements.GetBool() )
 	{
-#if 1
 		VPlane displacementRejectRegions[6];
 		displacementRejectRegions[0].m_Normal = -m_InternalData.Placement.vForward;
 		displacementRejectRegions[0].m_Dist = displacementRejectRegions[0].m_Normal.Dot( m_InternalData.Placement.ptCenter );
@@ -2941,11 +2925,9 @@ void CPortalSimulator::CreateLocalCollision( void )
 		CREATEDEBUGTIMER( dispTimer );
 		STARTDEBUGTIMER( dispTimer );
 		Assert( m_InternalData.Simulation.Static.World.Displacements.pCollideable == NULL );
+		virtualmeshlist_t DisplacementMeshes[32];
 
-		//int iMeshes = enginetrace->GetMeshesFromDisplacementsInAABB( m_InternalData.Placement.vecCurAABBMins, m_InternalData.Placement.vecCurAABBMaxs, DisplacementMeshes, ARRAYSIZE(DisplacementMeshes) );
-		
-		int iMeshes = enginetrace->GetNumDisplacements();
-		
+		int iMeshes = enginetrace->GetMeshesFromDisplacementsInAABB( m_InternalData.Placement.vecCurAABBMins, m_InternalData.Placement.vecCurAABBMaxs, DisplacementMeshes, ARRAYSIZE(DisplacementMeshes) );
 		if( iMeshes > 0 )
 		{
 			CPhysPolysoup *pDispCollideSoup = physcollision->PolysoupCreate();
@@ -2955,10 +2937,7 @@ void CPortalSimulator::CreateLocalCollision( void )
 
 			for( int i = 0; (i != iMeshes) && (iTriCount < 65535); ++i )
 			{
-				virtualmeshlist_t DisplacementMeshes;
-				enginetrace->GetDisplacementMesh( i, &DisplacementMeshes );
-				
-				virtualmeshlist_t *pMesh = &DisplacementMeshes;
+				virtualmeshlist_t *pMesh = &DisplacementMeshes[i];
 
 				for ( int j = 0; j < pMesh->indexCount; j+=3 )
 				{
@@ -3078,14 +3057,14 @@ void CPortalSimulator::CreateLocalCollision( void )
 
 				}// triangle loop
 			}
+
 			m_InternalData.Simulation.Static.World.Displacements.pCollideable = physcollision->ConvertPolysoupToCollide( pDispCollideSoup, false );
 
 			// clean up poly soup
 			physcollision->PolysoupDestroy( pDispCollideSoup );
 		}
-#else
-		m_InternalData.Simulation.Static.World.Displacements.pCollideable = enginetrace->GetCollidableFromDisplacementsInAABB( m_InternalData.Placement.vecCurAABBMins, m_InternalData.Placement.vecCurAABBMaxs );
-#endif
+
+		//m_InternalData.Simulation.Static.World.Displacements.pCollideable = enginetrace->GetCollidableFromDisplacementsInAABB( m_InternalData.Placement.vecCurAABBMins, m_InternalData.Placement.vecCurAABBMaxs );
 		STOPDEBUGTIMER( dispTimer );
 		DEBUGTIMERONLY( DevMsg( 2, "[PSDT:%d] %sDisplacement Surfaces=%fms\n", GetPortalSimulatorGUID(), TABSPACING, dispTimer.GetDuration().GetMillisecondsF() ); );
 	}
@@ -3432,12 +3411,12 @@ void CPortalSimulator::CreatePolyhedrons( void )
 			Assert( m_InternalData.Simulation.Static.World.Brushes.BrushSets[iBrushSet].Polyhedrons.Count() == 0 );
 
 			//CUtlVector<int> WorldBrushes;
-			CUtlVector<int> WorldBrushes;
-			enginetrace->GetBrushesInAABB( vAABBMins, vAABBMaxs, &WorldBrushes, m_InternalData.Simulation.Static.World.Brushes.BrushSets[iBrushSet].iSolidMask );
+			CBrushQuery WorldBrushes;
+			enginetrace->GetBrushesInAABB( vAABBMins, vAABBMaxs, WorldBrushes, m_InternalData.Simulation.Static.World.Brushes.BrushSets[iBrushSet].iSolidMask );
 
 			//create locally clipped polyhedrons for the world
 			{
-				int *pBrushList = WorldBrushes.Base();
+				uint32 *pBrushList = WorldBrushes.Base();
 				int iBrushCount = WorldBrushes.Count();
 				ConvertBrushListToClippedPolyhedronList( pBrushList, iBrushCount, (float *)collisionClip, ARRAYSIZE( collisionClip ), PORTAL_POLYHEDRON_CUT_EPSILON, &m_InternalData.Simulation.Static.World.Brushes.BrushSets[iBrushSet].Polyhedrons );
 			}
@@ -3634,9 +3613,10 @@ void CPortalSimulator::CreatePolyhedrons( void )
 		{
 			Assert( m_InternalData.Simulation.Static.Wall.Local.Brushes.BrushSets[iBrushSet].Polyhedrons.Count() == 0 );
 
-			CUtlVector<int> WallBrushes;
-
-			enginetrace->GetBrushesInAABB( vAABBMins, vAABBMaxs, &WallBrushes, m_InternalData.Simulation.Static.Wall.Local.Brushes.BrushSets[iBrushSet].iSolidMask );
+			//CUtlVector<int> WallBrushes;
+			CBrushQuery WallBrushes;
+			
+			enginetrace->GetBrushesInAABB( vAABBMins, vAABBMaxs, WallBrushes, m_InternalData.Simulation.Static.Wall.Local.Brushes.BrushSets[iBrushSet].iSolidMask );
 
 			if( WallBrushes.Count() != 0 )
 				ConvertBrushListToClippedPolyhedronList( WallBrushes.Base(), WallBrushes.Count(), (float *)collisionClip, ARRAYSIZE( collisionClip ), PORTAL_POLYHEDRON_CUT_EPSILON, &WallBrushPolyhedrons_ClippedToWall );
@@ -3702,15 +3682,12 @@ void CPortalSimulator::CreatePolyhedrons( void )
 								}
 							}
 							else if( solidType == SOLID_BSP )
-							{																
-								for( int iBrushSet = 0; iBrushSet != ARRAYSIZE( m_InternalData.Simulation.Static.Wall.Local.Brushes.BrushSets ); ++iBrushSet )
-								{
-									CUtlVector<int> WallBrushes;						
-									enginetrace->GetBrushesInAABB( vAABBMins, vAABBMaxs, &WallBrushes, m_InternalData.Simulation.Static.Wall.Local.Brushes.BrushSets[iBrushSet].iSolidMask );
-									
-									if( WallBrushes.Count() != 0 )
-										ConvertBrushListToClippedPolyhedronList( WallBrushes.Base(), WallBrushes.Count(), (float *)collisionClip, ARRAYSIZE( collisionClip ), PORTAL_POLYHEDRON_CUT_EPSILON, &WallBrushPolyhedrons_ClippedToWall );
-								}
+							{
+								CBrushQuery brushQuery;
+								enginetrace->GetBrushesInCollideable( pProp, brushQuery );
+
+								if( brushQuery.Count() != 0 )
+									ConvertBrushListToClippedPolyhedronList( brushQuery.Base(), brushQuery.Count(), (float *)collisionClip, ARRAYSIZE( collisionClip ), PORTAL_POLYHEDRON_CUT_EPSILON, &WallBrushPolyhedrons_ClippedToWall );
 							}
 						}
 					}
@@ -4436,7 +4413,7 @@ bool CPortalSimulator::CreatedPhysicsObject( const IPhysicsObject *pObject, PS_P
 
 
 
-static void ConvertBrushListToClippedPolyhedronList( const int *pBrushes, int iBrushCount, const float *pOutwardFacingClipPlanes, int iClipPlaneCount, float fClipEpsilon, CUtlVector<CPolyhedron *> *pPolyhedronList )
+static void ConvertBrushListToClippedPolyhedronList( const uint32 *pBrushes, int iBrushCount, const float *pOutwardFacingClipPlanes, int iClipPlaneCount, float fClipEpsilon, CUtlVector<CPolyhedron *> *pPolyhedronList )
 {
 	if( pPolyhedronList == NULL )
 		return;
@@ -4530,8 +4507,8 @@ static CPhysCollide *ConvertPolyhedronsToCollideable( CPolyhedron **pPolyhedrons
 		convertconvexparams_t params;
 		params.Defaults();
 		params.buildOptimizedTraceTables = true;
-		//params.bUseFastApproximateInertiaTensor = true;
-		//params.bBuildAABBTree = true;
+		params.bUseFastApproximateInertiaTensor = true;
+		params.bBuildAABBTree = true;
 		pReturn = physcollision->ConvertConvexToCollideParams( pConvexes, iConvexCount, params );
 		STOPDEBUGTIMER( collideTimer );
 		DEBUGTIMERONLY( DevMsg( 2, "[PSDT:%d] %sCollideable Generation:%fms\n", s_iPortalSimulatorGUID, TABSPACING, collideTimer.GetDuration().GetMillisecondsF() ); );

@@ -16,13 +16,15 @@
 
 #include "triggers.h"
 
+DECLARE_AUTO_LIST( ITriggerCatapultAutoList )
 
-class CTriggerCatapult : public CBaseTrigger
+class CTriggerCatapult : public CBaseTrigger, public ITriggerCatapultAutoList
 {
 	DECLARE_CLASS( CTriggerCatapult, CBaseTrigger );
 	DECLARE_DATADESC();
 	//DECLARE_SERVERCLASS();
 
+	CBaseEntity *GetEntity() { return this; }
 public:
 
 	CTriggerCatapult( void );

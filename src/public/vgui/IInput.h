@@ -185,6 +185,9 @@ public:
 	virtual VPANEL 	GetMouseCapture() = 0;
 
 	virtual VPANEL  GetMouseFocus() = 0;
+
+ 	virtual void	SetModalSubTreeShowMouse( bool state ) = 0;
+ 	virtual bool	ShouldModalSubTreeShowMouse() const = 0;
 };
 
 } // namespace vgui

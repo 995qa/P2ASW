@@ -257,7 +257,6 @@ bool CPackedStore::IsEmpty(void) const
 {
 	return (m_DirectoryData.Count() <= 1);
 }
-#define INOUT_Z_CAP(x) _Inout_z_cap_(x)
 
 #define COPY_ALL_CHARACTERS -1
 template <size_t cchDest> char* V_strcat_safe(_Deref_prepost_z_ char(&pDest)[cchDest], const char* pSrc, int nMaxCharsToCopy = COPY_ALL_CHARACTERS)

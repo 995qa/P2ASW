@@ -50,7 +50,7 @@
 #define MAX_PLAYERS_PER_CLIENT		1	// One player per PC
 #endif
 
-#define MAX_MAP_NAME				32	
+#define MAX_MAP_NAME				128	
 #define	MAX_NETWORKID_LENGTH		64  // num chars for a network (i.e steam) ID
 
 // BUGBUG: Reconcile with or derive this from the engine's internal definition!
@@ -254,10 +254,10 @@ enum
 										// the parent is not in the PVS.
 	EF_ITEM_BLINK			= 0x100,	// blink an item so that the user notices it.
 	EF_PARENT_ANIMATES		= 0x200,	// always assume that the parent entity is animating
-	EF_NOSHADOWDEPTH		= 0x300,	// Receive projected shadows, but don't cast them
-	EF_NOFLASHLIGHT			= 0x400,	// Cast projected shadows, but don't receive them
-	EF_SHADOWDEPTH_NOCACHE = 0x800,
-	EF_MARKED_FOR_FAST_REFLECTION = 0x1000,	// marks an entity for reflection rendering when using $reflectonlymarkedentities material variable
+	EF_MARKED_FOR_FAST_REFLECTION = 0x400,	// marks an entity for reflection rendering when using $reflectonlymarkedentities material variable
+	EF_NOSHADOWDEPTH		= 0x800,	// Receive projected shadows, but don't cast them
+	EF_SHADOWDEPTH_NOCACHE  = 0x1000,
+	EF_NOFLASHLIGHT			= 0x2000,	// Cast projected shadows, but don't receive them
 	EF_MAX_BITS = 14
 };
 

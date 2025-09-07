@@ -22,8 +22,8 @@
 #include "colorcorrectionmgr.h"
 #include "c_portal_playerlocaldata.h"
 #include "iinput.h"
-#include "paint/paint_power_user.h"
-#include "paint/paintable_entity.h"
+#include "paint_power_user.h"
+#include "paintable_entity.h"
 #include "portal2/portal_grabcontroller_shared.h"
 #include "portal_shareddefs.h"
 

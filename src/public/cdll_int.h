@@ -26,11 +26,6 @@
 #include "xbox/xboxstubs.h"
 #endif
 
-// IVEngineClient doesn't have a HasPaintMap() function, so we need a macro.
-#ifdef CLIENT_DLL
-#define HASPAINTMAP GetClientWorldEntity()->HasPaintMap()
-#endif
-
 //-----------------------------------------------------------------------------
 // forward declarations
 //-----------------------------------------------------------------------------
@@ -67,6 +62,8 @@ class ISPSharedMemory;
 class IDemoRecorder;
 struct AudioState_t;
 class CGamestatsData;
+class IReplayFactory;
+struct WriteReplayScreenshotParams_t;
 class IMaterialProxy;
 struct InputEvent_t;
 
@@ -210,7 +207,7 @@ typedef void (*pfnDemoCustomDataCallback)( uint8 *pData, size_t iSize );
 #define VENGINE_CLIENT_RANDOM_INTERFACE_VERSION	"VEngineRandom001"
 
 // change this when the new version is incompatable with the old
-#define VENGINE_CLIENT_INTERFACE_VERSION		"VEngineClient013"
+#define VENGINE_CLIENT_INTERFACE_VERSION		"VEngineClient015"
 
 //-----------------------------------------------------------------------------
 // Purpose: Interface exposed from the engine to the client .dll
@@ -239,7 +236,7 @@ public:
 	// Given an input text buffer data pointer, parses a single token into the variable token and returns the new
 	//  reading position
 	virtual const char			*ParseFile( const char *data, char *token, int maxlen ) = 0;
-	virtual bool				CopyFile( const char *source, const char *destination ) = 0;
+	virtual bool				CopyLocalFile( const char *source, const char *destination ) = 0;
 
 	// Gets the dimensions of the game window
 	virtual void				GetScreenSize( int& width, int& height ) = 0;
@@ -327,6 +324,8 @@ public:
 
 	// Get the current game directory ( e.g., hl2, tf2, cstrike, hl1 )
 	virtual const char			*GetGameDirectory( void ) = 0;
+	 
+	virtual void				GetDemoHeaderInfo( const char* par1, KeyValues* par2 ) = 0; // p2port: In Emulsion, not anywhere else
 
 	// Get access to the world to screen transformation matrix
 	virtual const VMatrix& 		WorldToScreenMatrix() = 0;
@@ -452,8 +451,6 @@ public:
 	virtual bool		IsTakingScreenshot( void ) = 0;
 	// Is this a HLTV broadcast ?
 	virtual bool		IsHLTV( void ) = 0;
-	// Is this a Replay demo?
-	virtual bool		IsReplay( void ) = 0;
 	// is this level loaded as just the background to the main menu? (active, but unplayable)
 	virtual bool		IsLevelMainMenuBackground( void ) = 0;
 	// returns the name of the background level
@@ -526,21 +523,26 @@ public:
 
 	// Causes the engine to read in the user's configuration on disk
 	virtual void			ReadConfiguration( const int iController, const bool readDefault ) = 0; 
-
-	virtual void SetAchievementMgr( IAchievementMgr *pAchievementMgr ) = 0;
-	virtual IAchievementMgr *GetAchievementMgr() = 0;
+	
+	//virtual void SetAchievementMgr( IAchievementMgr *pAchievementMgr ) = 0;
+	//virtual IAchievementMgr *GetAchievementMgr() = 0;
 
 	virtual bool			MapLoadFailed( void ) = 0;
 	virtual void			SetMapLoadFailed( bool bState ) = 0;
 	
 	virtual bool			IsLowViolence() = 0;
-	virtual const char		*GetMostRecentSaveGame( void ) = 0;
+	virtual const char		*GetMostRecentSaveGame( bool bEnsureExists = false ) = 0;
 	virtual void			SetMostRecentSaveGame( const char *lpszFilename ) = 0;
 
 	virtual void			StartXboxExitingProcess() = 0;
+
 	virtual bool			IsSaveInProgress() = 0;
+	virtual bool			IsAutoSaveDangerousInProgress() = 0;
+
 	virtual uint			OnStorageDeviceAttached( int iController ) = 0;
 	virtual void			OnStorageDeviceDetached( int iController ) = 0;
+	
+	virtual const char *	GetSaveDirName() = 0; // get a pointer to the path where saves should go (with a trailing slash already added)
 
 	// generic screenshot writing
 	virtual void		WriteScreenshot( const char *pFilename ) = 0;
@@ -594,7 +596,9 @@ public:
 	virtual void SetMixGroupOfCurrentMixer( const char *szgroupname, const char *szparam, float val, int setMixerType) = 0;
 	virtual int GetMixLayerIndex( const char *szmixlayername ) = 0;
 	virtual void SetMixLayerLevel(int index, float level ) = 0;
-
+	virtual int GetMixGroupIndex( const char *pMixGroupName ) = 0;
+	virtual void SetMixLayerTriggerFactor( int nMixLayerIndex, int nMixGroupIndex, float flFactor ) = 0;
+	virtual void SetMixLayerTriggerFactor( const char *pMixLayerIndex, const char *pMixGroupIndex, float flFactor ) = 0;
 
 	virtual bool IsCreatingReslist() = 0;
 	virtual bool IsCreatingXboxReslist() = 0;
@@ -604,6 +608,9 @@ public:
 	// Methods to set/get a gamestats data container so client & server running in same process can send combined data
 	virtual void SetGamestatsData( CGamestatsData *pGamestatsData ) = 0;
 	virtual CGamestatsData *GetGamestatsData() = 0;
+	
+	// we need to pull delta's from the cocoa mgr, the engine vectors this for us
+	virtual void GetMouseDelta( int &x, int &y, bool bIgnoreNextMouseDelta = false ) = 0;
 
 	// Given the string pBinding which may be bound to a key, 
 	//  returns the string name of the key to which this string is bound. Returns NULL if no such binding exists
@@ -611,13 +618,18 @@ public:
 	// iAllowJoystick defaults to -1 witch returns joystick and non-joystick binds, 0 returns only non-joystick, 1 returns only joystick
 	virtual	const char *Key_LookupBindingEx( const char *pBinding, int iUserId = -1, int iStartCount = 0, int iAllowJoystick = -1 ) = 0;
 
+	// returns key_code for specified binding
+	virtual int	Key_CodeForBinding( const char *pBinding, int iUserId = -1, int iStartCount = 0, int iAllowJoystick = -1 ) = 0; // p2port: Maybe need evaluation
+
 	// Updates dynamic light state. Necessary for light cache to work properly for d- and elights
 	virtual void UpdateDAndELights( void ) = 0;
 
 	// Methods to get bug count for internal dev work stat tracking.
 	// Will get the bug count and clear it every map transition
 	virtual int			GetBugSubmissionCount() const = 0;
-	virtual void		ClearBugSubmissionCount() = 0;
+	
+	// p2port: Commented in Emulsion, exists in CSGO, haven't checked PDBs
+	//virtual void		ClearBugSubmissionCount() = 0;
 
 	// Is there water anywhere in the level?
 	virtual bool	DoesLevelContainWater() const = 0;
@@ -653,11 +665,14 @@ public:
 	//				  the pointer is deleted inside the function: pKeyValues->deleteThis()
 	virtual void ServerCmdKeyValues( KeyValues *pKeyValues ) = 0;
 	// Tells the engine what and where to paint
-	virtual void PaintSurface( const model_t *model, const Vector& position, const Color& color, float radius ) = 0;
+	virtual bool SpherePaintSurface( const model_t *pModel, const Vector& vPosition, BYTE color, float flSphereRadius, float flPaintCoatPercent ) = 0;
+	virtual bool HasPaintmap() = 0;
 	// Enable paint in the engine for project Paint
 	virtual void EnablePaintmapRender() = 0;
-	virtual void TracePaintSurface( const model_t *model, const Vector& position, float radius, CUtlVector<Color>& surfColors ) = 0;
+	virtual void SphereTracePaintSurface( const model_t *pModel, const Vector& vPosition, const Vector& vContactNormal, float flSphereRadius, CUtlVector<BYTE>& surfColors ) = 0;
 	virtual void RemoveAllPaint() = 0;
+	virtual void PaintAllSurfaces( BYTE color ) = 0;
+	virtual void RemovePaint( const model_t *pModel ) = 0;
 
 	virtual bool IsActiveApp() = 0;
 
@@ -669,9 +684,25 @@ public:
 
 	// Returns the requested input context
 	virtual InputContextHandle_t GetInputContext( EngineInputContextId_t id ) = 0;
-
-	// let client lock mouse to the window bounds
-	virtual void SetMouseWindowLock( bool bLockToWindow ) = 0;
+	
+	// p2port: "a lump of stuff"
+	virtual void GetStartupImage(char* par1, int par2) = 0;
+	virtual bool IsUsingLocalNetworkBackdoor() = 0;
+	virtual bool SaveGame(char* param_1, bool param_2, char* param_3, int param_4, char* param_5, int param_6) = 0;
+	// param_1 is GenericMemoryStat_t, TODO: define the type
+	virtual int GetGenericMemoryStats(void** param_1) = 0;
+	virtual bool GameHasShutdownAndFlushedMemory() = 0;
+	virtual void* GetLastAcknowledgedCommand() = 0;
+	virtual void FinishContainerWrites(int par1) = 0;
+	virtual void FinishAsyncSave() = 0;
+	virtual double GetServerTick() = 0; // TODO: 'double' check this return type, pun intended, fuck you
+	virtual const char* GetModDirectory() = 0;
+	virtual void* AudioLanguageChanged() = 0;
+	virtual bool IsAutoSaveInProgress() = 0;
+	// why are there 2 of the same ones in vtable? 
+	virtual void SOSSetOpvarFloat(char* par1, float par2) = 0;
+	virtual void SOSSetOpvarFloat(char* par1, float* par2) = 0;
+	virtual bool IsReplay() = 0;
 };
 
 
@@ -683,6 +714,7 @@ abstract_class IBaseClientDLL
 public:
 	// Connect appsystem components, get global interfaces, don't run any other init code
 	virtual int				Connect( CreateInterfaceFn appSystemFactory, CGlobalVarsBase *pGlobals ) = 0;
+	virtual void            Disconnect() = 0;
 
 	// run other init code here
 	virtual int				Init( CreateInterfaceFn appSystemFactory, CGlobalVarsBase *pGlobals ) = 0;
@@ -712,6 +744,9 @@ public:
 	virtual void			HudReset( void ) = 0;
 	// Display a hud text message
 	virtual void			HudText( const char * message ) = 0;
+
+	// Draw the console overlay?
+	virtual bool			ShouldDrawDropdownConsole() = 0;
 
 	// Mouse Input Interfaces
 	// Activate the mouse (hides the cursor and locks it to the center of the screen)
@@ -824,11 +859,30 @@ public:
 
 	// Cache replay ragdolls
 	virtual bool			CacheReplayRagdolls( const char* pFilename, int nStartTick ) = 0;
+	
+	// Send a message to the Replay UI
+	virtual void			ReplayUI_SendMessage( KeyValues *pMsg ) = 0;
+
+	// Get the client replay factory
+	virtual IReplayFactory *GetReplayFactory() = 0;
+
+	// Clear out the local player's replay pointer so it doesn't get deleted
+	virtual void			ClearLocalPlayerReplayPtr() = 0;
+
+	// Get client screen dimensions
+	virtual int				GetScreenWidth() = 0;
+	virtual int				GetScreenHeight() = 0;
 
 	// Added interface
 
 	// save game screenshot writing
 	virtual void			WriteSaveGameScreenshotOfSize( const char *pFilename, int width, int height ) = 0;
+
+	// Write a .VTF screenshot to disk for the replay system
+	virtual void			WriteReplayScreenshot( WriteReplayScreenshotParams_t &params ) = 0;
+
+	// Reallocate memory for replay screenshots - called if user changes resolution or if the convar "replay_screenshotresolution" changes
+	virtual void			UpdateReplayScreenshotCache() = 0;
 
 	// Gets the current view
 	virtual bool			GetPlayerView( CViewSetup &playerView ) = 0;
@@ -891,6 +945,8 @@ abstract_class IClientMaterialSystem
 public:
 	virtual HTOOLHANDLE GetCurrentRecordingEntity() = 0;
 	virtual void PostToolMessage( HTOOLHANDLE hEntity, KeyValues *pMsg ) = 0;
+
+	virtual void SetMaterialProxyData( void* pProxyData ) = 0; // portal2
 };
 
 #define VCLIENTMATERIALSYSTEM_INTERFACE_VERSION "VCLIENTMATERIALSYSTEM001"
